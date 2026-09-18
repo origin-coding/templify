@@ -1,0 +1,86 @@
+name: Bug report
+description: Report reproducible incorrect or unexpected behavior.
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Templify. Do not upload confidential documents or real business records. Use a minimal, synthetic, or redacted reproduction file when possible.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem clearly and concisely.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest sequence of steps that reproduces the problem.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Render ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Templify version
+      placeholder: 'For example: 0.1.0'
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: 'For example: Windows 11 24H2'
+    validations:
+      required: true
+  - type: dropdown
+    id: input-mode
+    attributes:
+      label: Input mode
+      options:
+        - Manual input
+        - CSV
+        - Excel/XLSX
+        - Not applicable
+    validations:
+      required: true
+  - type: dropdown
+    id: output-mode
+    attributes:
+      label: Output mode
+      options:
+        - Single document
+        - Directory
+        - Archive
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostics
+      description: Paste relevant output after removing sensitive information.
+      render: shell
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context

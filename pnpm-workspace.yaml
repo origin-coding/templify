@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'tests/*'
+
+catalog:
+  '@types/node': ^24.13.5
+  typescript: ^7.0.2
+  vite: ^8.3.0
+  vitest: ^5.0.1
+
+allowBuilds: {}

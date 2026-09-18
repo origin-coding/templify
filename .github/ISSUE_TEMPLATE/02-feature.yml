@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest a focused improvement to Templify.
+title: '[Feature]: '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Templify is a focused DOCX template-filling utility. Explain how the proposal makes filling templates from user-provided records easier or safer.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Describe the concrete problem you are trying to solve.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful behavior that would solve the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workarounds or alternative designs you considered.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context

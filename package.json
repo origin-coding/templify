@@ -1,0 +1,30 @@
+{
+  "name": "templify",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:run && pnpm build",
+    "format": "oxfmt .",
+    "format:check": "oxfmt . --check",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix",
+    "test": "vitest",
+    "test:run": "vitest run --passWithNoTests",
+    "typecheck": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "packageManager": "pnpm@11.9.0"
+}
