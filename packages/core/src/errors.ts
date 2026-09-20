@@ -4,6 +4,8 @@ export type TemplateInspectionErrorCode =
   | 'ConflictingFieldDefinition'
   | 'UnsupportedTemplateTag';
 
+export type DocumentRenderErrorCode = 'MissingInputField' | 'InvalidInputValue' | 'RenderFailed';
+
 interface TemplateInspectionErrorOptions extends ErrorOptions {
   readonly rawTag?: string;
 }
@@ -48,5 +50,44 @@ export class UnsupportedTemplateTagError extends TemplateInspectionError {
 
   constructor(rawTag: string, message = `Unsupported template tag: ${rawTag}`) {
     super(message, { rawTag });
+  }
+}
+
+interface DocumentRenderErrorOptions extends ErrorOptions {
+  readonly fieldName?: string;
+}
+
+export abstract class DocumentRenderError extends Error {
+  abstract readonly code: DocumentRenderErrorCode;
+  readonly fieldName: string | undefined;
+
+  protected constructor(message: string, options: DocumentRenderErrorOptions = {}) {
+    super(message, { cause: options.cause });
+    this.name = new.target.name;
+    this.fieldName = options.fieldName;
+  }
+}
+
+export class MissingInputFieldError extends DocumentRenderError {
+  readonly code = 'MissingInputField' as const;
+
+  constructor(fieldName: string) {
+    super(`The input record is missing the template field "${fieldName}".`, { fieldName });
+  }
+}
+
+export class InvalidInputValueError extends DocumentRenderError {
+  readonly code = 'InvalidInputValue' as const;
+
+  constructor(fieldName: string, message: string, options: ErrorOptions = {}) {
+    super(message, { ...options, fieldName });
+  }
+}
+
+export class RenderFailedError extends DocumentRenderError {
+  readonly code = 'RenderFailed' as const;
+
+  constructor(message = 'The DOCX template could not be rendered.', options: ErrorOptions = {}) {
+    super(message, options);
   }
 }
