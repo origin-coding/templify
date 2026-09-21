@@ -34,6 +34,18 @@ export type {
   FieldHint,
   ScalarFieldDefinition,
 } from './field-definition.js';
+export {
+  executeSingleDocumentGeneration,
+  planSingleDocumentGeneration,
+} from './generate-single-document.js';
+export type {
+  ExecuteSingleDocumentGenerationInput,
+  ExecuteSingleDocumentGenerationResult,
+  PlanSingleDocumentGenerationInput,
+  PlanSingleDocumentGenerationResult,
+  SingleDocumentGenerationRejected,
+  SingleDocumentGenerationSuccess,
+} from './generate-single-document.js';
 export { inspectTemplate } from './inspect-template.js';
 export { parseFieldTag } from './parse-field-tag.js';
 export { createDocxOutputPlan, preflightDocxOutputPlan } from './plan-docx-output.js';

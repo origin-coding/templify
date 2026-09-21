@@ -77,6 +77,7 @@ export interface ArchiveOutputPlan extends DocxOutputPlanBase {
 export type DocxOutputPlan = SingleDocumentOutputPlan | DirectoryOutputPlan | ArchiveOutputPlan;
 
 export type OutputPlanDiagnosticCode =
+  | 'InvalidOutputPlan'
   | 'InvalidRecordCount'
   | 'InvalidConflictPolicy'
   | 'InvalidOutputRoot'
