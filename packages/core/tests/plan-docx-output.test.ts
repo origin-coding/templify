@@ -253,6 +253,11 @@ describe('createDocxOutputPlan', () => {
   it.each([
     ['CON', 'ReservedDeviceName'],
     ['nul.tar', 'ReservedDeviceName'],
+    ['COM¹.docx', 'ReservedDeviceName'],
+    ['LPT².docx', 'ReservedDeviceName'],
+    ['CONIN$.docx', 'ReservedDeviceName'],
+    ['CONOUT$.docx', 'ReservedDeviceName'],
+    ['CON .docx', 'ReservedDeviceName'],
     ['bad:name', 'InvalidCharacter'],
     [`bad${String.fromCharCode(1)}name`, 'InvalidCharacter'],
     ['a'.repeat(256), 'FilenameTooLong'],

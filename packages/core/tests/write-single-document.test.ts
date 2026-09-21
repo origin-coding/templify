@@ -93,6 +93,11 @@ describe('writeSingleDocument', () => {
     ['CON.docx', 'ReservedDeviceName'],
     ['nul.tar.docx', 'ReservedDeviceName'],
     ['COM1.docx', 'ReservedDeviceName'],
+    ['COM¹.docx', 'ReservedDeviceName'],
+    ['LPT².docx', 'ReservedDeviceName'],
+    ['CONIN$.docx', 'ReservedDeviceName'],
+    ['CONOUT$.docx', 'ReservedDeviceName'],
+    ['CON .docx', 'ReservedDeviceName'],
     ['output.txt', 'UnsupportedExtension'],
     [`${'a'.repeat(251)}.docx`, 'FilenameTooLong'],
   ])('rejects the invalid Windows-compatible file name %j', async (fileName, reason) => {
