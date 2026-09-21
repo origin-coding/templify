@@ -6,6 +6,110 @@ export type TemplateInspectionErrorCode =
 
 export type DocumentRenderErrorCode = 'MissingInputField' | 'InvalidInputValue' | 'RenderFailed';
 
+export type DocumentOutputErrorCode =
+  | 'InvalidOutputPath'
+  | 'InvalidOutputFilename'
+  | 'UnsafeOutputPath'
+  | 'OutputSameAsTemplate'
+  | 'OutputDirectoryNotFound'
+  | 'OutputTargetIsDirectory'
+  | 'OutputConflict'
+  | 'OutputPermissionDenied'
+  | 'OutputWriteFailed';
+
+export type DocumentOutputErrorReason =
+  | 'RootNotAbsolute'
+  | 'RootNotDirectory'
+  | 'DirectoryNotFound'
+  | 'PathTooLong'
+  | 'EmptyFilename'
+  | 'AbsoluteFilename'
+  | 'NestedFilename'
+  | 'DotFilename'
+  | 'InvalidCharacter'
+  | 'TrailingDotOrSpace'
+  | 'ReservedDeviceName'
+  | 'UnsupportedExtension'
+  | 'FilenameTooLong'
+  | 'OutsideOutputRoot'
+  | 'SameFile'
+  | 'TargetExists'
+  | 'TargetIsDirectory'
+  | 'PermissionDenied'
+  | 'AccessDeniedOrFileInUse'
+  | 'DiskFull'
+  | 'IoFailure';
+
+export type DocumentOutputPhase =
+  | 'validation'
+  | 'target-creation'
+  | 'temporary-file-creation'
+  | 'write'
+  | 'flush'
+  | 'close'
+  | 'replacement'
+  | 'cleanup';
+
+export interface DocumentOutputErrorOptions extends ErrorOptions {
+  readonly path?: string | undefined;
+  readonly reason?: DocumentOutputErrorReason | undefined;
+  readonly phase?: DocumentOutputPhase | undefined;
+  readonly systemCode?: string | undefined;
+}
+
+export abstract class DocumentOutputError extends Error {
+  abstract readonly code: DocumentOutputErrorCode;
+  readonly path: string | undefined;
+  readonly reason: DocumentOutputErrorReason | undefined;
+  readonly phase: DocumentOutputPhase | undefined;
+  readonly systemCode: string | undefined;
+
+  constructor(message: string, options: DocumentOutputErrorOptions = {}) {
+    super(message, { cause: options.cause });
+    this.name = new.target.name;
+    this.path = options.path;
+    this.reason = options.reason;
+    this.phase = options.phase;
+    this.systemCode = options.systemCode;
+  }
+}
+
+export class InvalidOutputPathError extends DocumentOutputError {
+  readonly code = 'InvalidOutputPath' as const;
+}
+
+export class InvalidOutputFilenameError extends DocumentOutputError {
+  readonly code = 'InvalidOutputFilename' as const;
+}
+
+export class UnsafeOutputPathError extends DocumentOutputError {
+  readonly code = 'UnsafeOutputPath' as const;
+}
+
+export class OutputSameAsTemplateError extends DocumentOutputError {
+  readonly code = 'OutputSameAsTemplate' as const;
+}
+
+export class OutputDirectoryNotFoundError extends DocumentOutputError {
+  readonly code = 'OutputDirectoryNotFound' as const;
+}
+
+export class OutputTargetIsDirectoryError extends DocumentOutputError {
+  readonly code = 'OutputTargetIsDirectory' as const;
+}
+
+export class OutputConflictError extends DocumentOutputError {
+  readonly code = 'OutputConflict' as const;
+}
+
+export class OutputPermissionDeniedError extends DocumentOutputError {
+  readonly code = 'OutputPermissionDenied' as const;
+}
+
+export class OutputWriteFailedError extends DocumentOutputError {
+  readonly code = 'OutputWriteFailed' as const;
+}
+
 interface TemplateInspectionErrorOptions extends ErrorOptions {
   readonly rawTag?: string;
 }
