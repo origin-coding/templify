@@ -9,6 +9,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: (id) =>
+        id.startsWith('node:') ||
         id === 'docxtemplater' ||
         id.startsWith('docxtemplater/') ||
         id === 'lodash' ||
