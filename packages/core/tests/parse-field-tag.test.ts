@@ -8,24 +8,29 @@ import {
 
 describe('parseFieldTag', () => {
   it.each([
-    ['name', { name: 'name', hint: { type: 'string' } }],
-    ['name:string', { name: 'name', hint: { type: 'string' } }],
-    ['amount:number', { name: 'amount', hint: { type: 'number' } }],
-    ['enabled:boolean', { name: 'enabled', hint: { type: 'boolean' } }],
-    ['birthday:date', { name: 'birthday', hint: { type: 'date' } }],
-    ['姓名:string', { name: '姓名', hint: { type: 'string' } }],
+    ['name', { kind: 'scalar', name: 'name', hint: { type: 'string' } }],
+    ['name:string', { kind: 'scalar', name: 'name', hint: { type: 'string' } }],
+    ['amount:number', { kind: 'scalar', name: 'amount', hint: { type: 'number' } }],
+    ['enabled:boolean', { kind: 'scalar', name: 'enabled', hint: { type: 'boolean' } }],
+    ['birthday:date', { kind: 'scalar', name: 'birthday', hint: { type: 'date' } }],
+    ['姓名:string', { kind: 'scalar', name: '姓名', hint: { type: 'string' } }],
   ])('parses %s', (tag, expected) => {
     expect(parseFieldTag(tag)).toEqual(expected);
   });
 
   it('trims field names and hints', () => {
-    expect(parseFieldTag('  name : date  ')).toEqual({ name: 'name', hint: { type: 'date' } });
+    expect(parseFieldTag('  name : date  ')).toEqual({
+      kind: 'scalar',
+      name: 'name',
+      hint: { type: 'date' },
+    });
   });
 
   it('parses option values with punctuation and escaped quotes', () => {
     expect(
       parseFieldTag('department:option["Engineering, APAC","Office: North","Say \\"Hi\\""]'),
     ).toEqual({
+      kind: 'scalar',
       name: 'department',
       hint: {
         type: 'option',

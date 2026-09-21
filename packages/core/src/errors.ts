@@ -6,6 +6,15 @@ export type TemplateInspectionErrorCode =
 
 export type DocumentRenderErrorCode = 'MissingInputField' | 'InvalidInputValue' | 'RenderFailed';
 
+export type DocumentRenderErrorReason =
+  | 'MissingScalarField'
+  | 'MissingCollection'
+  | 'MissingCollectionItemField'
+  | 'InvalidScalarValue'
+  | 'InvalidCollectionValue'
+  | 'InvalidCollectionItem'
+  | 'InvalidCollectionItemValue';
+
 export type DocumentOutputErrorCode =
   | 'InvalidOutputPath'
   | 'InvalidOutputFilename'
@@ -145,7 +154,7 @@ export class ConflictingFieldDefinitionError extends TemplateInspectionError {
   readonly code = 'ConflictingFieldDefinition' as const;
 
   constructor(fieldName: string, rawTag: string) {
-    super(`Field "${fieldName}" has conflicting type definitions.`, { rawTag });
+    super(`Field "${fieldName}" has conflicting definitions in the same scope.`, { rawTag });
   }
 }
 
@@ -158,32 +167,60 @@ export class UnsupportedTemplateTagError extends TemplateInspectionError {
 }
 
 interface DocumentRenderErrorOptions extends ErrorOptions {
-  readonly fieldName?: string;
+  readonly fieldName?: string | undefined;
+  readonly dataPath?: readonly (string | number)[] | undefined;
+  readonly reason?: DocumentRenderErrorReason | undefined;
 }
 
 export abstract class DocumentRenderError extends Error {
   abstract readonly code: DocumentRenderErrorCode;
   readonly fieldName: string | undefined;
+  readonly dataPath: readonly (string | number)[] | undefined;
+  readonly reason: DocumentRenderErrorReason | undefined;
 
   protected constructor(message: string, options: DocumentRenderErrorOptions = {}) {
     super(message, { cause: options.cause });
     this.name = new.target.name;
     this.fieldName = options.fieldName;
+    this.dataPath = options.dataPath;
+    this.reason = options.reason;
   }
 }
 
 export class MissingInputFieldError extends DocumentRenderError {
   readonly code = 'MissingInputField' as const;
 
-  constructor(fieldName: string) {
-    super(`The input record is missing the template field "${fieldName}".`, { fieldName });
+  constructor(
+    fieldName: string,
+    options: {
+      readonly dataPath?: readonly (string | number)[] | undefined;
+      readonly reason?:
+        | 'MissingScalarField'
+        | 'MissingCollection'
+        | 'MissingCollectionItemField'
+        | undefined;
+    } = {},
+  ) {
+    const dataPath = options.dataPath ?? [fieldName];
+    super(`The input data is missing the template field "${formatDataPath(dataPath)}".`, {
+      fieldName,
+      dataPath,
+      reason: options.reason ?? 'MissingScalarField',
+    });
   }
 }
 
 export class InvalidInputValueError extends DocumentRenderError {
   readonly code = 'InvalidInputValue' as const;
 
-  constructor(fieldName: string, message: string, options: ErrorOptions = {}) {
+  constructor(
+    fieldName: string,
+    message: string,
+    options: ErrorOptions & {
+      readonly dataPath?: readonly (string | number)[] | undefined;
+      readonly reason?: DocumentRenderErrorReason | undefined;
+    } = {},
+  ) {
     super(message, { ...options, fieldName });
   }
 }
@@ -194,4 +231,12 @@ export class RenderFailedError extends DocumentRenderError {
   constructor(message = 'The DOCX template could not be rendered.', options: ErrorOptions = {}) {
     super(message, options);
   }
+}
+
+function formatDataPath(dataPath: readonly (string | number)[]): string {
+  return dataPath
+    .map((part, index) =>
+      typeof part === 'number' ? `[${part}]` : `${index === 0 ? '' : '.'}${part}`,
+    )
+    .join('');
 }
