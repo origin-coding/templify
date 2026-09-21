@@ -12,6 +12,7 @@ export default defineConfig({
         id.startsWith('node:') ||
         id === 'docxtemplater' ||
         id.startsWith('docxtemplater/') ||
+        id === 'filename-reserved-regex' ||
         id === 'lodash' ||
         id === 'pizzip',
     },
