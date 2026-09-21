@@ -36,6 +36,26 @@ export type {
 } from './field-definition.js';
 export { inspectTemplate } from './inspect-template.js';
 export { parseFieldTag } from './parse-field-tag.js';
+export { createDocxOutputPlan, preflightDocxOutputPlan } from './plan-docx-output.js';
+export type {
+  ArchiveOutputPlan,
+  ArchivePlanTarget,
+  CreateDocxOutputPlanInput,
+  CreateDocxOutputPlanResult,
+  DirectoryOutputPlan,
+  DirectoryPlanTarget,
+  DocxOutputMode,
+  DocxOutputPlan,
+  DocxOutputPlanItem,
+  DocxOutputPlanTarget,
+  DraftDocxOutputPlan,
+  OutputPlanDiagnostic,
+  OutputPlanDiagnosticCode,
+  OutputPlanPreflightOptions,
+  OutputPlanPreflightResult,
+  SingleDocumentOutputPlan,
+  SingleDocumentPlanTarget,
+} from './plan-docx-output.js';
 export type {
   CollectionData,
   FlatRecord,

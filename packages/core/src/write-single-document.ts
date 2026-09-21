@@ -17,6 +17,7 @@ import {
   type DocumentOutputErrorOptions,
   type DocumentOutputPhase,
 } from './errors.js';
+import { isPathContained, validateWindowsFilenameSegment } from './output-path.js';
 
 export interface SingleDocumentTarget {
   /** An existing absolute directory selected by the caller. */
@@ -42,10 +43,6 @@ interface ValidatedDestination {
   readonly targetPath: string;
   readonly realTargetParent: string;
 }
-
-const INVALID_WINDOWS_FILENAME_CHARACTER = /[<>:"/\\|?*]/u;
-const RESERVED_WINDOWS_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;
-const MAX_FILENAME_UTF16_CODE_UNITS = 255;
 
 export async function writeSingleDocument(
   document: Buffer,
@@ -144,37 +141,17 @@ function validateFilename(fileName: string): void {
   if (fileName.includes('/') || fileName.includes('\\')) {
     fail('The output file name cannot contain a directory path.', 'NestedFilename');
   }
-  if (
-    INVALID_WINDOWS_FILENAME_CHARACTER.test(fileName) ||
-    [...fileName].some((character) => character.codePointAt(0)! <= 0x1f)
-  ) {
-    fail(
-      'The output file name contains a character that is not Windows-compatible.',
-      'InvalidCharacter',
-    );
-  }
-  if (/[. ]$/u.test(fileName)) {
-    fail('The output file name cannot end with a dot or space.', 'TrailingDotOrSpace');
-  }
-  if (RESERVED_WINDOWS_DEVICE_NAME.test(fileName)) {
-    fail('The output file name uses a reserved Windows device name.', 'ReservedDeviceName');
+  const segmentReason = validateWindowsFilenameSegment(fileName);
+  if (segmentReason !== undefined) {
+    fail('The output file name is not Windows-compatible.', segmentReason);
   }
   if (path.extname(fileName).toLocaleLowerCase('en-US') !== '.docx') {
     fail('The output file name must use the .docx extension.', 'UnsupportedExtension');
   }
-  if (fileName.length > MAX_FILENAME_UTF16_CODE_UNITS) {
-    fail('The output file name is too long.', 'FilenameTooLong');
-  }
 }
 
 function assertContained(root: string, candidate: string): void {
-  const relativePath = path.relative(root, candidate);
-  const escapes =
-    relativePath === '..' ||
-    relativePath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativePath);
-
-  if (!escapes) return;
+  if (isPathContained(root, candidate)) return;
 
   throw new UnsafeOutputPathError('The output path escapes the selected output directory.', {
     path: candidate,
