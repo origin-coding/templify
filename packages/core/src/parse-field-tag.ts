@@ -1,11 +1,11 @@
 import { InvalidTemplateTagError, UnsupportedTemplateTagError } from './errors.js';
-import type { FieldDefinition, FieldHint } from './field-definition.js';
+import type { FieldHint, ScalarFieldDefinition } from './field-definition.js';
 
 const UNSUPPORTED_TAG_PREFIXES = new Set(['#', '/', '@', '%', '~', ':', '$']);
 
 const SIMPLE_HINTS = new Set(['string', 'number', 'boolean', 'date']);
 
-export function parseFieldTag(tag: string): FieldDefinition {
+export function parseFieldTag(tag: string): ScalarFieldDefinition {
   const rawTag = tag;
   const normalizedTag = tag.trim();
 
@@ -21,11 +21,26 @@ export function parseFieldTag(tag: string): FieldDefinition {
   validateFieldName(name, rawTag);
 
   if (separatorIndex === -1) {
-    return { name, hint: { type: 'string' } };
+    return { kind: 'scalar', name, hint: { type: 'string' } };
   }
 
   const hintSource = normalizedTag.slice(separatorIndex + 1).trim();
-  return { name, hint: parseHint(hintSource, rawTag) };
+  return { kind: 'scalar', name, hint: parseHint(hintSource, rawTag) };
+}
+
+export function parseCollectionTag(tag: string, rawTag = tag): string {
+  const normalizedTag = tag.trim();
+
+  if (UNSUPPORTED_TAG_PREFIXES.has(normalizedTag[0] ?? '')) {
+    throw new UnsupportedTemplateTagError(rawTag);
+  }
+
+  if (normalizedTag.includes(':')) {
+    throw new InvalidTemplateTagError(rawTag, 'A collection tag cannot contain a type hint.');
+  }
+
+  validateFieldName(normalizedTag, rawTag);
+  return normalizedTag;
 }
 
 function validateFieldName(name: string, rawTag: string): void {

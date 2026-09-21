@@ -3,6 +3,23 @@ import PizZip from 'pizzip';
 export type Paragraph = readonly string[];
 
 export function createDocx(paragraphs: readonly Paragraph[]): Buffer {
+  return createDocxFromBodyXml(paragraphs.map(createParagraphXml).join(''));
+}
+
+export function createDocxWithTableRow(cells: readonly Paragraph[]): Buffer {
+  const row = cells
+    .map(
+      (runs) =>
+        '<w:tc><w:tcPr/><w:p>' +
+        runs.map((text) => `<w:r><w:t>${escapeXml(text)}</w:t></w:r>`).join('') +
+        '</w:p></w:tc>',
+    )
+    .join('');
+
+  return createDocxFromBodyXml(`<w:tbl><w:tblPr/><w:tblGrid/><w:tr>${row}</w:tr></w:tbl>`);
+}
+
+function createDocxFromBodyXml(bodyXml: string): Buffer {
   const zip = new PizZip();
 
   zip.file(
@@ -29,7 +46,7 @@ export function createDocx(paragraphs: readonly Paragraph[]): Buffer {
       'document.xml',
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-        `<w:body>${paragraphs.map(createParagraphXml).join('')}<w:sectPr/></w:body>` +
+        `<w:body>${bodyXml}<w:sectPr/></w:body>` +
         '</w:document>',
     );
 
