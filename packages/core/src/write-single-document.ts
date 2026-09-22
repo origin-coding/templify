@@ -49,13 +49,32 @@ export async function writeSingleDocument(
   target: SingleDocumentTarget,
   options: SingleDocumentOutputOptions,
 ): Promise<SingleDocumentOutputResult> {
-  const destination = await validateDestination(target);
-  await ensureDifferentFromTemplate(options.sourceTemplatePath, destination);
-
-  return writeDocumentBuffer(document, destination.targetPath, options.conflictPolicy ?? 'error');
+  return writeOutputFile(document, target, options, '.docx');
 }
 
-async function validateDestination(target: SingleDocumentTarget): Promise<ValidatedDestination> {
+/** Internal shared publication primitive for validated single-file output formats. */
+export async function writeOutputFile(
+  contents: Buffer,
+  target: SingleDocumentTarget,
+  options: SingleDocumentOutputOptions,
+  expectedExtension: '.docx' | '.zip',
+  containmentRootDirectory = target.rootDirectory,
+): Promise<SingleDocumentOutputResult> {
+  const destination = await validateDestination(
+    target,
+    expectedExtension,
+    containmentRootDirectory,
+  );
+  await ensureDifferentFromTemplate(options.sourceTemplatePath, destination);
+
+  return writeDocumentBuffer(contents, destination.targetPath, options.conflictPolicy ?? 'error');
+}
+
+async function validateDestination(
+  target: SingleDocumentTarget,
+  expectedExtension: '.docx' | '.zip',
+  containmentRootDirectory: string,
+): Promise<ValidatedDestination> {
   const { rootDirectory, fileName } = target;
 
   if (!path.isAbsolute(rootDirectory)) {
@@ -65,10 +84,18 @@ async function validateDestination(target: SingleDocumentTarget): Promise<Valida
       phase: 'validation',
     });
   }
+  if (!path.isAbsolute(containmentRootDirectory)) {
+    throw new InvalidOutputPathError('The containment root must be an absolute path.', {
+      path: containmentRootDirectory,
+      reason: 'RootNotAbsolute',
+      phase: 'validation',
+    });
+  }
 
-  validateFilename(fileName);
+  validateFilename(fileName, expectedExtension);
 
   const normalizedRoot = path.resolve(rootDirectory);
+  const normalizedContainmentRoot = path.resolve(containmentRootDirectory);
   let rootStats: Stats;
 
   try {
@@ -100,11 +127,13 @@ async function validateDestination(target: SingleDocumentTarget): Promise<Valida
 
   let realRootDirectory: string;
   let realTargetParent: string;
+  let realContainmentRoot: string;
 
   try {
-    [realRootDirectory, realTargetParent] = await Promise.all([
+    [realRootDirectory, realTargetParent, realContainmentRoot] = await Promise.all([
       realpath(normalizedRoot),
       realpath(path.dirname(targetPath)),
+      realpath(normalizedContainmentRoot),
     ]);
   } catch (cause) {
     throw mapSystemError(cause, normalizedRoot, 'validation');
@@ -112,11 +141,12 @@ async function validateDestination(target: SingleDocumentTarget): Promise<Valida
 
   const realTargetPath = path.resolve(realTargetParent, path.basename(targetPath));
   assertContained(realRootDirectory, realTargetPath);
+  assertContained(realContainmentRoot, realTargetPath);
 
   return { targetPath, realTargetParent };
 }
 
-function validateFilename(fileName: string): void {
+function validateFilename(fileName: string, expectedExtension: '.docx' | '.zip'): void {
   const fail = (message: string, reason: DocumentOutputErrorOptions['reason']): never => {
     throw new InvalidOutputFilenameError(message, {
       path: fileName,
@@ -145,8 +175,11 @@ function validateFilename(fileName: string): void {
   if (segmentReason !== undefined) {
     fail('The output file name is not Windows-compatible.', segmentReason);
   }
-  if (path.extname(fileName).toLocaleLowerCase('en-US') !== '.docx') {
-    fail('The output file name must use the .docx extension.', 'UnsupportedExtension');
+  if (path.extname(fileName).toLocaleLowerCase('en-US') !== expectedExtension) {
+    fail(
+      `The output file name must use the ${expectedExtension} extension.`,
+      'UnsupportedExtension',
+    );
   }
 }
 
