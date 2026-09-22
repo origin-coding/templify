@@ -483,48 +483,17 @@ Avoid positional matching.
 
 ---
 
-## 16. Rendering Modes
+## 16. Rendering Model
 
-Rendering has two fundamentally different semantics.
-
-### 16.1 Single Document
-
-Multiple records are rendered into one DOCX.
-
-Example:
+Templify uses independent per-record document generation:
 
 ```text
-Record[]
-    ↓
-one render operation
-    ↓
-output.docx
+one RecordData -> one rendered DOCX
 ```
 
-The template itself should explicitly define how records repeat, for example using a Docxtemplater loop:
+Exactly one record may be written to one caller-named DOCX file. One or more records may be written as separate DOCX files under a directory or as separate DOCX entries in an archive.
 
-```text
-{#records}
-
-{name}
-{department}
-
-... page break ...
-
-{/records}
-```
-
-Templify should not silently rewrite a template to wrap it in an implicit records loop.
-
-The template must express multi-record structure explicitly.
-
-This mode is especially useful for printing many forms at once.
-
----
-
-### 16.2 Multiple Documents
-
-Each record produces one document.
+Each record produces one document:
 
 Example:
 
@@ -538,6 +507,10 @@ Each document can then be written to:
 
 * a directory, or
 * an archive.
+
+Templify does not provide an application-level multi-record merged DOCX mode. Collection and loop support within one `RecordData` remains valid template behavior, but it must not be treated as an implicit application-level records loop.
+
+The authoritative rationale and consequences are recorded in GitHub Issue [#10](https://github.com/origin-coding/templify/issues/10).
 
 ---
 
@@ -559,6 +532,8 @@ type OutputMode =
   | "directory"
   | "archive";
 ```
+
+`single-document` accepts exactly one record. Directory and archive modes may accept one or more records and preserve the accepted output-plan order.
 
 ---
 
@@ -934,7 +909,8 @@ Important cases include:
 * filename conflicts,
 * directory output,
 * ZIP output,
-* single-document multi-record rendering.
+* single-record document output,
+* deterministic multi-record directory and ZIP output.
 
 For DOCX behavior, prefer integration tests using actual `.docx` fixture files instead of mocking Docxtemplater internals.
 
@@ -1010,7 +986,6 @@ After this works reliably, expand incrementally:
 
 ```text
 multiple records
-→ single-document rendering
 → directory output
 → archive output
 → CSV input
