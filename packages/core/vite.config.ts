@@ -14,7 +14,9 @@ export default defineConfig({
         id.startsWith('docxtemplater/') ||
         id === 'filename-reserved-regex' ||
         id === 'lodash' ||
-        id === 'pizzip',
+        id === 'pizzip' ||
+        id === 'reamkit' ||
+        id.startsWith('reamkit/'),
     },
     sourcemap: true,
   },

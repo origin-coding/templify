@@ -63,6 +63,12 @@ export type {
   SingleDocumentGenerationRejected,
   SingleDocumentGenerationSuccess,
 } from './generate-single-document.js';
+export { generatePdfDocuments } from './generate-pdf-documents.js';
+export type {
+  GeneratedPdfDocument,
+  GeneratePdfDocumentsInput,
+  GeneratePdfDocumentsResult,
+} from './generate-pdf-documents.js';
 export { inspectTemplate } from './inspect-template.js';
 export {
   ArchiveFailedError,
@@ -74,6 +80,23 @@ export type {
   GeneratedDocumentOutput,
   MultiDocumentGenerationErrorCode,
 } from './multi-document-generation.js';
+export type {
+  PdfConversionInput,
+  PdfConversionLoss,
+  PdfConversionLossSeverity,
+  PdfConversionResult,
+  PdfConverter,
+  PdfConverterAvailability,
+} from './pdf-converter.js';
+export {
+  InvalidPdfGenerationPlanError,
+  PdfConversionFailedError,
+  PdfConverterUnavailableError,
+} from './pdf-generation-errors.js';
+export type {
+  PdfConversionFailureReason,
+  PdfGenerationErrorCode,
+} from './pdf-generation-errors.js';
 export { parseFieldTag } from './parse-field-tag.js';
 export { createDocxOutputPlan, preflightDocxOutputPlan } from './plan-docx-output.js';
 export type {
@@ -114,6 +137,8 @@ export type {
   RenderLocale,
   RenderOptions,
 } from './render-options.js';
+export { ReamKitPdfConverter } from './reamkit-pdf-converter.js';
+export type { ReamKitPdfConverterOptions } from './reamkit-pdf-converter.js';
 export { writeSingleDocument } from './write-single-document.js';
 export type {
   ConflictPolicy,
