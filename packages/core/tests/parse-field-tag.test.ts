@@ -13,6 +13,7 @@ describe('parseFieldTag', () => {
     ['amount:number', { kind: 'scalar', name: 'amount', hint: { type: 'number' } }],
     ['enabled:boolean', { kind: 'scalar', name: 'enabled', hint: { type: 'boolean' } }],
     ['birthday:date', { kind: 'scalar', name: 'birthday', hint: { type: 'date' } }],
+    ['createdAt:datetime', { kind: 'scalar', name: 'createdAt', hint: { type: 'datetime' } }],
     ['姓名:string', { kind: 'scalar', name: '姓名', hint: { type: 'string' } }],
   ])('parses %s', (tag, expected) => {
     expect(parseFieldTag(tag)).toEqual(expected);

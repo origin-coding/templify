@@ -79,6 +79,36 @@ describe('executeDirectoryDocumentGeneration', () => {
     expect(readDocumentXml(await readFile(result.outputs[1]!.path))).toContain('Name: Bob');
   });
 
+  it('applies shared render options to every generated document', async () => {
+    const formattedTemplate = createDocx([['Amount: {amount:number}']]);
+    const records = [{ amount: 1234.5 }, { amount: 6789 }];
+    const plan = directoryPlan(records, '{$index}.docx');
+
+    const result = await executeDirectoryDocumentGeneration({
+      template: formattedTemplate,
+      records,
+      sourceTemplatePath,
+      plan,
+      renderOptions: {
+        formats: [
+          {
+            path: ['amount'],
+            format: {
+              type: 'number',
+              useGrouping: true,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          },
+        ],
+      },
+    });
+
+    if (!result.ok) throw new Error('Expected directory generation to succeed.');
+    expect(readDocumentXml(await readFile(result.outputs[0]!.path))).toContain('1,234.50');
+    expect(readDocumentXml(await readFile(result.outputs[1]!.path))).toContain('6,789.00');
+  });
+
   it('publishes no final documents when any record fails to render', async () => {
     const records = [record('Alice', 'Engineering'), { department: 'Finance' }];
     const plan = directoryPlan(records, '{$index}.docx');
@@ -95,6 +125,34 @@ describe('executeDirectoryDocumentGeneration', () => {
       code: 'BatchRenderFailed',
       item: { recordIndex: 1 },
       cause: { code: 'MissingInputField' },
+    });
+    await expect(readdir(outputDirectory)).resolves.toEqual([]);
+  });
+
+  it('publishes no documents when render options are invalid', async () => {
+    const formattedTemplate = createDocx([['Amount: {amount:number}']]);
+    const records = [{ amount: 1 }, { amount: 2 }];
+    const plan = directoryPlan(records, '{$index}.docx');
+
+    const operation = executeDirectoryDocumentGeneration({
+      template: formattedTemplate,
+      records,
+      sourceTemplatePath,
+      plan,
+      renderOptions: {
+        formats: [
+          {
+            path: ['amount'],
+            format: { type: 'boolean', trueText: 'Yes', falseText: 'No' },
+          },
+        ],
+      },
+    });
+
+    await expect(operation).rejects.toMatchObject({
+      code: 'BatchRenderFailed',
+      item: { recordIndex: 0 },
+      cause: { code: 'InvalidRenderOptions', reason: 'IncompatibleFormatType' },
     });
     await expect(readdir(outputDirectory)).resolves.toEqual([]);
   });

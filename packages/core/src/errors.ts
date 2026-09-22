@@ -4,7 +4,41 @@ export type TemplateInspectionErrorCode =
   | 'ConflictingFieldDefinition'
   | 'UnsupportedTemplateTag';
 
-export type DocumentRenderErrorCode = 'MissingInputField' | 'InvalidInputValue' | 'RenderFailed';
+export type DocumentRenderErrorCode =
+  | 'MissingInputField'
+  | 'InvalidInputValue'
+  | 'InvalidRenderOptions'
+  | 'RenderFailed';
+
+export type InvalidRenderOptionsReason =
+  | 'InvalidLocale'
+  | 'InvalidTimeZone'
+  | 'InvalidFormatRule'
+  | 'InvalidFieldPath'
+  | 'UnknownFieldPath'
+  | 'DuplicateFieldPath'
+  | 'IncompatibleFormatType'
+  | 'InvalidDatePattern'
+  | 'InvalidNumberFormat'
+  | 'InvalidBooleanFormat';
+
+interface InvalidRenderOptionsErrorOptions extends ErrorOptions {
+  readonly fieldPath?: readonly string[] | undefined;
+  readonly reason: InvalidRenderOptionsReason;
+}
+
+export class InvalidRenderOptionsError extends Error {
+  readonly code = 'InvalidRenderOptions' as const;
+  readonly fieldPath: readonly string[] | undefined;
+  readonly reason: InvalidRenderOptionsReason;
+
+  constructor(message: string, options: InvalidRenderOptionsErrorOptions) {
+    super(message, { cause: options.cause });
+    this.name = new.target.name;
+    this.fieldPath = options.fieldPath;
+    this.reason = options.reason;
+  }
+}
 
 export type DocumentRenderErrorReason =
   | 'MissingScalarField'

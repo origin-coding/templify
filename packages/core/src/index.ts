@@ -5,6 +5,7 @@ export {
   InvalidOutputFilenameError,
   InvalidOutputPathError,
   InvalidInputValueError,
+  InvalidRenderOptionsError,
   InvalidTemplateError,
   InvalidTemplateTagError,
   MissingInputFieldError,
@@ -26,6 +27,7 @@ export type {
   DocumentOutputPhase,
   DocumentRenderErrorCode,
   DocumentRenderErrorReason,
+  InvalidRenderOptionsReason,
   TemplateInspectionErrorCode,
 } from './errors.js';
 export type {
@@ -101,6 +103,17 @@ export type {
   RecordValue,
 } from './record-data.js';
 export { renderTemplate } from './render-template.js';
+export type {
+  BooleanFieldFormat,
+  DateFieldFormat,
+  DateTimeFieldFormat,
+  FieldFormat,
+  FieldFormatRule,
+  FieldPath,
+  NumberFieldFormat,
+  RenderLocale,
+  RenderOptions,
+} from './render-options.js';
 export { writeSingleDocument } from './write-single-document.js';
 export type {
   ConflictPolicy,

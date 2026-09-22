@@ -17,6 +17,7 @@ import {
   type OutputPlanDiagnostic,
 } from './plan-docx-output.js';
 import type { RecordData } from './record-data.js';
+import type { RenderOptions } from './render-options.js';
 import { mapSystemError, writeOutputFile } from './write-single-document.js';
 
 export interface ExecuteDirectoryDocumentGenerationInput {
@@ -24,6 +25,7 @@ export interface ExecuteDirectoryDocumentGenerationInput {
   readonly records: readonly RecordData[];
   readonly sourceTemplatePath: string;
   readonly plan: DirectoryOutputPlan;
+  readonly renderOptions?: RenderOptions;
 }
 
 export interface DirectoryDocumentGenerationSuccess {
@@ -64,7 +66,12 @@ export async function executeDirectoryDocumentGeneration(
     return { ok: false, plan: input.plan, diagnostics: preflight.diagnostics };
   }
 
-  const renderedDocuments = renderPlannedDocuments(input.template, input.records, input.plan.items);
+  const renderedDocuments = renderPlannedDocuments(
+    input.template,
+    input.records,
+    input.plan.items,
+    input.renderOptions,
+  );
   const preparationResults = await Promise.allSettled(
     renderedDocuments.map((rendered) => prepareDocumentPublication(input.plan, rendered)),
   );

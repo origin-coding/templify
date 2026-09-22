@@ -3,6 +3,7 @@ export type FieldHint =
   | { readonly type: 'number' }
   | { readonly type: 'boolean' }
   | { readonly type: 'date' }
+  | { readonly type: 'datetime' }
   | { readonly type: 'option'; readonly values: readonly string[] };
 
 export interface ScalarFieldDefinition {

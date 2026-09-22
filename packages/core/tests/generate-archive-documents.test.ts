@@ -96,6 +96,32 @@ describe('executeArchiveDocumentGeneration', () => {
     );
   });
 
+  it('applies shared render options to every document in the archive', async () => {
+    const formattedTemplate = createDocx([['Enabled: {enabled:boolean}']]);
+    const records = [{ enabled: true }, { enabled: false }];
+    const plan = archivePlan(records, 'documents.zip', '{$index}.docx');
+
+    const result = await executeArchiveDocumentGeneration({
+      template: formattedTemplate,
+      records,
+      sourceTemplatePath,
+      plan,
+      renderOptions: {
+        formats: [
+          {
+            path: ['enabled'],
+            format: { type: 'boolean', trueText: '是', falseText: '否' },
+          },
+        ],
+      },
+    });
+
+    if (!result.ok) throw new Error('Expected archive generation to succeed.');
+    const archive = new PizZip(await readFile(result.path));
+    expect(readDocumentXml(archive.file('1.docx')!.asNodeBuffer())).toContain('Enabled: 是');
+    expect(readDocumentXml(archive.file('2.docx')!.asNodeBuffer())).toContain('Enabled: 否');
+  });
+
   it('publishes no archive when any record fails to render', async () => {
     const records = [record('Alice', 'Engineering'), { department: 'Finance' }];
     const plan = archivePlan(records, 'documents.zip', '{$index}.docx');

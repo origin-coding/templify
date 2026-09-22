@@ -8,6 +8,7 @@ import type {
   OutputPlanDiagnostic,
 } from './plan-docx-output.js';
 import type { RecordData } from './record-data.js';
+import type { RenderOptions } from './render-options.js';
 import { renderTemplate } from './render-template.js';
 
 export type MultiDocumentGenerationErrorCode =
@@ -82,10 +83,14 @@ export function renderPlannedDocuments(
   template: Buffer,
   records: readonly RecordData[],
   items: readonly DocxOutputPlanItem[],
+  renderOptions?: RenderOptions,
 ): readonly RenderedPlannedDocument[] {
   return items.map((item) => {
     try {
-      return { item, buffer: renderTemplate(template, records[item.recordIndex]!) };
+      return {
+        item,
+        buffer: renderTemplate(template, records[item.recordIndex]!, renderOptions),
+      };
     } catch (cause) {
       throw new BatchRenderFailedError(item, cause);
     }

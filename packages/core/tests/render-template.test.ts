@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   InvalidInputValueError,
+  InvalidRenderOptionsError,
   InvalidTemplateError,
   MissingInputFieldError,
   RenderFailedError,
@@ -129,6 +130,256 @@ describe('renderTemplate', () => {
     expect(documentXml).toContain('Item: Laptop');
     expect(documentXml).toContain('Item: Monitor');
     expect(documentXml).toContain('Approved: Alice');
+  });
+
+  it('applies date, datetime, number, currency, and boolean formats before rendering', () => {
+    const template = createDocx([
+      ['Date: {date:date}'],
+      ['Time: {createdAt:datetime}'],
+      ['Amount: {amount:number}'],
+      ['Price: {price:number}'],
+      ['Enabled: {enabled:boolean}'],
+      ['Empty: {empty:number}'],
+    ]);
+
+    const output = renderTemplate(
+      template,
+      {
+        date: new Date('2026-09-20T23:30:00.000Z'),
+        createdAt: new Date('2026-09-20T23:30:00.000Z'),
+        amount: 1234.5,
+        price: 1234.5,
+        enabled: true,
+        empty: null,
+      },
+      {
+        locale: 'zh-CN',
+        timeZone: 'Asia/Shanghai',
+        formats: [
+          { path: ['date'], format: { type: 'date', pattern: 'YYYY年MM月DD日' } },
+          {
+            path: ['createdAt'],
+            format: { type: 'datetime', pattern: 'YYYY-MM-DD HH:mm:ss' },
+          },
+          {
+            path: ['amount'],
+            format: {
+              type: 'number',
+              useGrouping: true,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          },
+          {
+            path: ['price'],
+            format: {
+              type: 'number',
+              currency: 'CNY',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          },
+          { path: ['enabled'], format: { type: 'boolean', trueText: '是', falseText: '否' } },
+          {
+            path: ['empty'],
+            format: { type: 'number', minimumFractionDigits: 2 },
+          },
+        ],
+      },
+    );
+
+    const documentXml = readDocumentXml(output);
+    expect(documentXml).toContain('Date: 2026年09月20日');
+    expect(documentXml).toContain('Time: 2026-09-21 07:30:00');
+    expect(documentXml).toContain('Amount: 1,234.50');
+    expect(documentXml).toContain('Price: ¥1,234.50');
+    expect(documentXml).toContain('Enabled: 是');
+    expect(documentXml).toContain('Empty: ');
+  });
+
+  it('formats a collection field without confusing it with a dotted root field name', () => {
+    const template = createDocx([
+      ['Root: {items.amount:number}'],
+      ['{#items}'],
+      ['Item: {amount:number}'],
+      ['{/items}'],
+    ]);
+
+    const output = renderTemplate(
+      template,
+      { 'items.amount': 12.3, items: [{ amount: 45.6 }, { amount: 78.9 }] },
+      {
+        formats: [
+          {
+            path: ['items.amount'],
+            format: { type: 'number', minimumFractionDigits: 1 },
+          },
+          {
+            path: ['items', 'amount'],
+            format: { type: 'number', minimumFractionDigits: 2 },
+          },
+        ],
+      },
+    );
+
+    const documentXml = readDocumentXml(output);
+    expect(documentXml).toContain('Root: 12.3');
+    expect(documentXml).toContain('Item: 45.60');
+    expect(documentXml).toContain('Item: 78.90');
+  });
+
+  it('uses a field time zone in preference to the global time zone', () => {
+    const template = createDocx([['{createdAt:datetime}']]);
+    const output = renderTemplate(
+      template,
+      { createdAt: new Date('2026-09-20T23:30:00.000Z') },
+      {
+        timeZone: 'Asia/Shanghai',
+        formats: [
+          {
+            path: ['createdAt'],
+            format: {
+              type: 'datetime',
+              pattern: 'YYYY-MM-DD HH:mm Z',
+              timeZone: 'America/New_York',
+            },
+          },
+        ],
+      },
+    );
+
+    expect(readDocumentXml(output)).toContain('2026-09-20 19:30 -04:00');
+  });
+
+  it('supports English and Simplified Chinese date locales', () => {
+    const template = createDocx([['English: {english:date}'], ['Chinese: {chinese:date}']]);
+    const date = new Date('2026-09-20T23:30:00.000Z');
+    const output = renderTemplate(
+      template,
+      { english: date, chinese: date },
+      {
+        locale: 'zh-CN',
+        formats: [
+          {
+            path: ['english'],
+            format: { type: 'date', pattern: 'MMMM D, YYYY', locale: 'en' },
+          },
+          {
+            path: ['chinese'],
+            format: { type: 'date', pattern: 'YYYY年MMMMD日' },
+          },
+        ],
+      },
+    );
+
+    const documentXml = readDocumentXml(output);
+    expect(documentXml).toContain('English: September 20, 2026');
+    expect(documentXml).toContain('Chinese: 2026年九月20日');
+  });
+
+  it('supports bracketed literals in datetime patterns', () => {
+    const template = createDocx([['{createdAt:datetime}']]);
+    const output = renderTemplate(
+      template,
+      { createdAt: new Date('2026-09-20T13:14:15.000Z') },
+      {
+        formats: [
+          {
+            path: ['createdAt'],
+            format: {
+              type: 'datetime',
+              pattern: 'YYYY-MM-DD[T]HH:mm:ss[ UTC]',
+              timeZone: 'UTC',
+            },
+          },
+        ],
+      },
+    );
+
+    expect(readDocumentXml(output)).toContain('2026-09-20T13:14:15 UTC');
+  });
+
+  it.each([
+    [
+      'unknown field',
+      { formats: [{ path: ['missing'], format: { type: 'number' } }] },
+      'UnknownFieldPath',
+      ['missing'],
+    ],
+    [
+      'duplicate field',
+      {
+        formats: [
+          { path: ['amount'], format: { type: 'number' } },
+          { path: ['amount'], format: { type: 'number' } },
+        ],
+      },
+      'DuplicateFieldPath',
+      ['amount'],
+    ],
+    [
+      'incompatible field type',
+      {
+        formats: [{ path: ['amount'], format: { type: 'boolean', trueText: 'Y', falseText: 'N' } }],
+      },
+      'IncompatibleFormatType',
+      ['amount'],
+    ],
+    ['invalid time zone', { timeZone: 'Not/A_Time_Zone' }, 'InvalidTimeZone', undefined],
+    [
+      'invalid date pattern',
+      { formats: [{ path: ['date'], format: { type: 'date', pattern: '[unclosed' } }] },
+      'InvalidDatePattern',
+      ['date'],
+    ],
+    [
+      'time token on a date field',
+      { formats: [{ path: ['date'], format: { type: 'date', pattern: 'YYYY-MM-DD HH:mm' } }] },
+      'InvalidDatePattern',
+      ['date'],
+    ],
+    [
+      'currency display without currency',
+      { formats: [{ path: ['amount'], format: { type: 'number', currencyDisplay: 'code' } }] },
+      'InvalidNumberFormat',
+      ['amount'],
+    ],
+  ] as const)(
+    'reports structured render options errors for an %s',
+    (_label, options, reason, path) => {
+      const template = createDocx([['{amount:number}'], ['{date:date}']]);
+      const error = captureError(() =>
+        renderTemplate(
+          template,
+          { amount: 1, date: new Date('2026-09-20T00:00:00.000Z') },
+          options,
+        ),
+      );
+
+      expect(error).toBeInstanceOf(InvalidRenderOptionsError);
+      expect(error).toMatchObject({ code: 'InvalidRenderOptions', reason, fieldPath: path });
+    },
+  );
+
+  it('validates every format rule before reading record values', () => {
+    const template = createDocx([['{amount:number}']]);
+    const error = captureError(() =>
+      renderTemplate(
+        template,
+        {},
+        {
+          formats: [
+            {
+              path: ['amount'],
+              format: { type: 'boolean', trueText: 'Yes', falseText: 'No' },
+            },
+          ],
+        },
+      ),
+    );
+
+    expect(error).toBeInstanceOf(InvalidRenderOptionsError);
+    expect(error).toMatchObject({ reason: 'IncompatibleFormatType', fieldPath: ['amount'] });
   });
 
   it('uses the same API for a records collection in one document', () => {
