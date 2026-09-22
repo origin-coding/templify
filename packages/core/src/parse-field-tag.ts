@@ -3,7 +3,7 @@ import type { FieldHint, ScalarFieldDefinition } from './field-definition.js';
 
 const UNSUPPORTED_TAG_PREFIXES = new Set(['#', '/', '@', '%', '~', ':', '$']);
 
-const SIMPLE_HINTS = new Set(['string', 'number', 'boolean', 'date']);
+const SIMPLE_HINTS = new Set(['string', 'number', 'boolean', 'date', 'datetime']);
 
 export function parseFieldTag(tag: string): ScalarFieldDefinition {
   const rawTag = tag;
@@ -67,7 +67,9 @@ function isInvalidFieldNameCharacter(character: string): boolean {
 
 function parseHint(hintSource: string, rawTag: string): FieldHint {
   if (SIMPLE_HINTS.has(hintSource)) {
-    return { type: hintSource as 'string' | 'number' | 'boolean' | 'date' };
+    return {
+      type: hintSource as 'string' | 'number' | 'boolean' | 'date' | 'datetime',
+    };
   }
 
   if (hintSource.startsWith('option')) {

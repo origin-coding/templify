@@ -44,6 +44,17 @@ describe('formatFieldValue', () => {
     expect(formatFieldValue(field, value)).toBe('2026-09-20');
   });
 
+  it('formats datetimes in the system time zone without fractional seconds', () => {
+    const field = {
+      kind: 'scalar' as const,
+      name: 'createdAt',
+      hint: { type: 'datetime' as const },
+    };
+    const value = new Date(2026, 8, 20, 13, 14, 15, 987);
+
+    expect(formatFieldValue(field, value)).toBe('2026-09-20 13:14:15');
+  });
+
   it('renders null as an empty string for every hint', () => {
     const field = {
       kind: 'scalar' as const,
@@ -64,6 +75,10 @@ describe('formatFieldValue', () => {
     [{ kind: 'scalar' as const, name: 'enabled', hint: { type: 'boolean' as const } }, 'true'],
     [
       { kind: 'scalar' as const, name: 'birthday', hint: { type: 'date' as const } },
+      new Date(Number.NaN),
+    ],
+    [
+      { kind: 'scalar' as const, name: 'createdAt', hint: { type: 'datetime' as const } },
       new Date(Number.NaN),
     ],
   ])('rejects an invalid value for $field.name', (field, value) => {

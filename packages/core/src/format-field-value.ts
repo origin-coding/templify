@@ -37,7 +37,24 @@ export function formatFieldValue(
         throw invalidValue(field, 'a valid Date', dataPath, reason);
       }
       return formatDate(value);
+
+    case 'datetime':
+      if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
+        throw invalidValue(field, 'a valid Date', dataPath, reason);
+      }
+      return formatDateTime(value);
   }
+}
+
+function formatDateTime(value: Date): string {
+  const year = String(value.getFullYear()).padStart(4, '0');
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  const hours = String(value.getHours()).padStart(2, '0');
+  const minutes = String(value.getMinutes()).padStart(2, '0');
+  const seconds = String(value.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 function formatDate(value: Date): string {

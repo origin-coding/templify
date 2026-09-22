@@ -4,6 +4,7 @@ import PizZip from 'pizzip';
 import {
   DocumentRenderError,
   InvalidInputValueError,
+  InvalidRenderOptionsError,
   MissingInputFieldError,
   RenderFailedError,
   TemplateInspectionError,
@@ -13,20 +14,26 @@ import type {
   FieldDefinition,
   ScalarFieldDefinition,
 } from './field-definition.js';
-import { formatFieldValue } from './format-field-value.js';
+import { createFieldValueFormatter, type FieldValueFormatter } from './field-value-formatter.js';
 import { inspectTemplate } from './inspect-template.js';
 import { parseFieldTag } from './parse-field-tag.js';
 import type { PrimitiveValue, RecordData } from './record-data.js';
+import type { RenderOptions } from './render-options.js';
 
 type DataPath = readonly (string | number)[];
 type FormattedFlatRecord = Readonly<Record<string, string>>;
 type RenderValue = string | readonly FormattedFlatRecord[];
 type RenderContext = Readonly<Record<string, RenderValue>>;
 
-export function renderTemplate(template: Buffer, data: RecordData): Buffer {
+export function renderTemplate(
+  template: Buffer,
+  data: RecordData,
+  options: RenderOptions = {},
+): Buffer {
   try {
     const fields = inspectTemplate(template);
-    const context = createRenderContext(fields, data);
+    const formatter = createFieldValueFormatter(fields, options);
+    const context = createRenderContext(fields, data, formatter);
     const zip = new PizZip(template);
     const document = new Docxtemplater(zip, {
       errorLogging: false,
@@ -44,7 +51,11 @@ export function renderTemplate(template: Buffer, data: RecordData): Buffer {
     document.render(context);
     return document.getZip().generate({ type: 'nodebuffer' });
   } catch (cause) {
-    if (cause instanceof TemplateInspectionError || cause instanceof DocumentRenderError) {
+    if (
+      cause instanceof TemplateInspectionError ||
+      cause instanceof DocumentRenderError ||
+      cause instanceof InvalidRenderOptionsError
+    ) {
       throw cause;
     }
 
@@ -52,7 +63,11 @@ export function renderTemplate(template: Buffer, data: RecordData): Buffer {
   }
 }
 
-function createRenderContext(fields: readonly FieldDefinition[], data: RecordData): RenderContext {
+function createRenderContext(
+  fields: readonly FieldDefinition[],
+  data: RecordData,
+  formatter: FieldValueFormatter,
+): RenderContext {
   const context: Record<string, RenderValue> = {};
 
   for (const field of fields) {
@@ -66,8 +81,8 @@ function createRenderContext(fields: readonly FieldDefinition[], data: RecordDat
 
     context[field.name] =
       field.kind === 'scalar'
-        ? formatScalarField(field, value, dataPath)
-        : formatCollection(field, value, dataPath);
+        ? formatScalarField(field, value, dataPath, formatter)
+        : formatCollection(field, value, dataPath, formatter);
   }
 
   return context;
@@ -77,6 +92,7 @@ function formatScalarField(
   field: ScalarFieldDefinition,
   value: unknown,
   dataPath: DataPath,
+  formatter: FieldValueFormatter,
 ): string {
   if (!isPrimitiveValue(value)) {
     throw new InvalidInputValueError(
@@ -86,13 +102,14 @@ function formatScalarField(
     );
   }
 
-  return formatFieldValue(field, value, dataPath, 'InvalidScalarValue');
+  return formatter.format(field, value, [field.name], dataPath, 'InvalidScalarValue');
 }
 
 function formatCollection(
   field: CollectionFieldDefinition,
   value: unknown,
   dataPath: DataPath,
+  formatter: FieldValueFormatter,
 ): readonly FormattedFlatRecord[] {
   if (!Array.isArray(value)) {
     throw new InvalidInputValueError(
@@ -113,7 +130,7 @@ function formatCollection(
       );
     }
 
-    return formatCollectionItem(field, item, itemPath);
+    return formatCollectionItem(field, item, itemPath, formatter);
   });
 }
 
@@ -121,6 +138,7 @@ function formatCollectionItem(
   collection: CollectionFieldDefinition,
   item: Readonly<Record<string, unknown>>,
   itemPath: DataPath,
+  formatter: FieldValueFormatter,
 ): FormattedFlatRecord {
   const formattedItem: Record<string, string> = {};
 
@@ -136,9 +154,10 @@ function formatCollectionItem(
       );
     }
 
-    formattedItem[field.name] = formatFieldValue(
+    formattedItem[field.name] = formatter.format(
       field,
       value,
+      [collection.name, field.name],
       dataPath,
       'InvalidCollectionItemValue',
     );

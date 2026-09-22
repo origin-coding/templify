@@ -9,6 +9,7 @@ import {
   type SingleDocumentOutputPlan,
 } from './plan-docx-output.js';
 import type { RecordData } from './record-data.js';
+import type { RenderOptions } from './render-options.js';
 import { renderTemplate } from './render-template.js';
 import {
   writeSingleDocument,
@@ -38,6 +39,7 @@ export interface ExecuteSingleDocumentGenerationInput {
   readonly record: RecordData;
   readonly sourceTemplatePath: string;
   readonly plan: SingleDocumentOutputPlan;
+  readonly renderOptions?: RenderOptions;
 }
 
 export interface SingleDocumentGenerationSuccess extends SingleDocumentOutputResult {
@@ -98,7 +100,7 @@ export async function executeSingleDocumentGeneration(
   }
 
   const item = input.plan.items[0]!;
-  const document = renderTemplate(input.template, input.record);
+  const document = renderTemplate(input.template, input.record, input.renderOptions);
   const output = await writeSingleDocument(
     document,
     {

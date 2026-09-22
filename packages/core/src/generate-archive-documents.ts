@@ -12,6 +12,7 @@ import {
   type OutputPlanDiagnostic,
 } from './plan-docx-output.js';
 import type { RecordData } from './record-data.js';
+import type { RenderOptions } from './render-options.js';
 import { writeOutputFile } from './write-single-document.js';
 
 export interface ExecuteArchiveDocumentGenerationInput {
@@ -19,6 +20,7 @@ export interface ExecuteArchiveDocumentGenerationInput {
   readonly records: readonly RecordData[];
   readonly sourceTemplatePath: string;
   readonly plan: ArchiveOutputPlan;
+  readonly renderOptions?: RenderOptions;
 }
 
 export interface ArchiveDocumentEntryResult {
@@ -62,7 +64,12 @@ export async function executeArchiveDocumentGeneration(
     return { ok: false, plan: input.plan, diagnostics: preflight.diagnostics };
   }
 
-  const renderedDocuments = renderPlannedDocuments(input.template, input.records, input.plan.items);
+  const renderedDocuments = renderPlannedDocuments(
+    input.template,
+    input.records,
+    input.plan.items,
+    input.renderOptions,
+  );
   const archive = new PizZip();
   const entries: ArchiveDocumentEntryResult[] = [];
 
