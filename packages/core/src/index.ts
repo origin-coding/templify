@@ -34,6 +34,21 @@ export type {
   FieldHint,
   ScalarFieldDefinition,
 } from './field-definition.js';
+export { executeArchiveDocumentGeneration } from './generate-archive-documents.js';
+export type {
+  ArchiveDocumentEntryResult,
+  ArchiveDocumentGenerationRejected,
+  ArchiveDocumentGenerationSuccess,
+  ExecuteArchiveDocumentGenerationInput,
+  ExecuteArchiveDocumentGenerationResult,
+} from './generate-archive-documents.js';
+export { executeDirectoryDocumentGeneration } from './generate-directory-documents.js';
+export type {
+  DirectoryDocumentGenerationRejected,
+  DirectoryDocumentGenerationSuccess,
+  ExecuteDirectoryDocumentGenerationInput,
+  ExecuteDirectoryDocumentGenerationResult,
+} from './generate-directory-documents.js';
 export {
   executeSingleDocumentGeneration,
   planSingleDocumentGeneration,
@@ -47,6 +62,16 @@ export type {
   SingleDocumentGenerationSuccess,
 } from './generate-single-document.js';
 export { inspectTemplate } from './inspect-template.js';
+export {
+  ArchiveFailedError,
+  BatchRenderFailedError,
+  DirectoryOutputFailedError,
+} from './multi-document-generation.js';
+export type {
+  DirectoryOutputFailure,
+  GeneratedDocumentOutput,
+  MultiDocumentGenerationErrorCode,
+} from './multi-document-generation.js';
 export { parseFieldTag } from './parse-field-tag.js';
 export { createDocxOutputPlan, preflightDocxOutputPlan } from './plan-docx-output.js';
 export type {
