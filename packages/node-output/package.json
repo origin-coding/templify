@@ -1,5 +1,5 @@
 {
-  "name": "@templify/core",
+  "name": "@templify/node-output",
   "version": "0.0.0",
   "private": true,
   "files": [
@@ -20,13 +20,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@cantoo/pdf-lib": "2.11.1",
-    "dayjs": "^1.11.23",
-    "docxtemplater": "^3.70.1",
-    "filename-reserved-regex": "^4.0.1",
-    "lodash": "^4.18.1",
-    "pizzip": "^3.2.0",
-    "reamkit": "^1.29.0"
+    "@templify/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

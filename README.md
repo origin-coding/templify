@@ -31,7 +31,12 @@ packages/   Shared domain, application, and infrastructure packages.
 tests/      Cross-package integration tests and fixtures.
 ```
 
-Packages will be introduced incrementally as working vertical slices are implemented.
+The current shared packages are:
+
+- `@templify/core`: template preparation, input normalization, generation planning, in-memory rendering, PDF derivation boundaries, and artifact packaging.
+- `@templify/node-output`: pure publication planning, read-only filesystem preflight, and confirmed filesystem publication.
+
+See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
 
 ## Development
 
