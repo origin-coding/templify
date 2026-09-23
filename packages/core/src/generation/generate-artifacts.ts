@@ -1,13 +1,13 @@
 /* eslint-disable no-await-in-loop -- Generation is deliberately ordered and fail-fast. */
-import type { GeneratedArtifact, GeneratedArtifactSet } from '@/artifacts/generated-artifact.js';
-import type { PdfConverter } from '@/pdf/pdf-converter.js';
-import type { PdfMerger } from '@/pdf/pdf-merger.js';
-import { cantooPdfMerger } from '@/pdf/cantoo-pdf-merger.js';
-import { reamkitPdfConverter } from '@/pdf/reamkit-pdf-converter.js';
-import { DocumentRenderFailure, renderDocument } from '@/rendering/render-document.js';
-import type { StageResult } from '@/stage-result.js';
-import type { GenerationError, GenerationWarning } from './generation-diagnostics.js';
-import { getGenerationFormatter, type Generation } from './generation.js';
+import type { GeneratedArtifact, GeneratedArtifactSet } from '@/artifacts/generated-artifact';
+import type { PdfConverter } from '@/pdf/pdf-converter';
+import type { PdfMerger } from '@/pdf/pdf-merger';
+import { cantooPdfMerger } from '@/pdf/cantoo-pdf-merger';
+import { reamkitPdfConverter } from '@/pdf/reamkit-pdf-converter';
+import { DocumentRenderFailure, renderDocument } from '@/rendering/render-document';
+import type { StageResult } from '@/stage-result';
+import type { GenerationError, GenerationWarning } from './generation-diagnostics';
+import { getGenerationFormatter, type Generation } from './generation';
 
 export interface GenerationDependencies {
   readonly pdfConverter?: PdfConverter;

@@ -1,17 +1,17 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 
-import type { RecordData, ScalarValue } from '@/input/record-data.js';
-import { copyPreparedTemplateSource, type PreparedTemplate } from '@/template/prepared-template.js';
-import { parseFieldTag } from '@/template/parse-field-tag.js';
+import type { RecordData, ScalarValue } from '@/input/record-data';
+import { copyPreparedTemplateSource, type PreparedTemplate } from '@/template/prepared-template';
+import { parseFieldTag } from '@/template/parse-field-tag';
 import type {
   CollectionFieldDefinition,
   FieldDefinition,
   ScalarFieldDefinition,
-} from '@/template/field-definition.js';
-import type { DocumentRenderError } from './rendering-diagnostics.js';
-import { createFieldValueFormatter, type FieldValueFormatter } from './field-value-formatter.js';
-import type { ValidatedRenderOptions } from './validated-render-options.js';
+} from '@/template/field-definition';
+import type { DocumentRenderError } from './rendering-diagnostics';
+import { createFieldValueFormatter, type FieldValueFormatter } from './field-value-formatter';
+import type { ValidatedRenderOptions } from './validated-render-options';
 
 type FormattedFlatRecord = Readonly<Record<string, string>>;
 type RenderValue = string | readonly FormattedFlatRecord[];

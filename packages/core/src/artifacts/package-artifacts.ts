@@ -1,11 +1,11 @@
 import PizZip from 'pizzip';
 
-import type { GeneratedArtifactSet } from './generated-artifact.js';
-import type { ArtifactPackagingError } from './artifact-diagnostics.js';
-import { deriveUnbundledManifestItems } from './publication-manifest.js';
-import type { PublishableArtifactSet } from './publishable-artifact.js';
-import type { GenerationPlan } from '@/generation/generation-plan.js';
-import type { StageResult } from '@/stage-result.js';
+import type { GeneratedArtifactSet } from './generated-artifact';
+import type { ArtifactPackagingError } from './artifact-diagnostics';
+import { deriveUnbundledManifestItems } from './publication-manifest';
+import type { PublishableArtifactSet } from './publishable-artifact';
+import type { GenerationPlan } from '@/generation/generation-plan';
+import type { StageResult } from '@/stage-result';
 
 export function packageArtifacts(
   plan: GenerationPlan,

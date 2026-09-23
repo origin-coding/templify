@@ -1,9 +1,9 @@
 import path from 'node:path';
 import type { PublicationManifest } from '@templify/core';
 import type { StageResult } from '@templify/core';
-import { comparisonKey, resolveInsideRoot } from '@/internal/path-safety.js';
-import type { PublicationPlanError } from './plan-diagnostics.js';
-import type { ConflictPolicy, PublicationPlan, PublicationPlanItem } from './publication-plan.js';
+import { comparisonKey, resolveInsideRoot } from '@/internal/path-safety';
+import type { PublicationPlanError } from './plan-diagnostics';
+import type { ConflictPolicy, PublicationPlan, PublicationPlanItem } from './publication-plan';
 
 export interface CreatePublicationPlanInput {
   readonly manifest: PublicationManifest;

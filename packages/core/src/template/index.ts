@@ -1,11 +1,11 @@
-export { prepareTemplate } from './prepare-template.js';
-export type { PrepareTemplateResult } from './prepare-template.js';
-export type { PreparedTemplate } from './prepared-template.js';
-export type { TemplatePreparationError } from './template-diagnostics.js';
-export type { TemplateDefinition } from './template-definition.js';
+export { prepareTemplate } from './prepare-template';
+export type { PrepareTemplateResult } from './prepare-template';
+export type { PreparedTemplate } from './prepared-template';
+export type { TemplatePreparationError } from './template-diagnostics';
+export type { TemplateDefinition } from './template-definition';
 export type {
   CollectionFieldDefinition,
   FieldDefinition,
   FieldHint,
   ScalarFieldDefinition,
-} from './field-definition.js';
+} from './field-definition';

@@ -1,4 +1,4 @@
-import type { FieldPath, RenderLocale } from './render-options.js';
+import type { FieldPath, RenderLocale } from './render-options';
 
 export type ValidatedFieldFormat =
   | {

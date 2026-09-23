@@ -3,20 +3,20 @@ import { lstat, mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { PublishableArtifactSet, StageResult } from '@templify/core';
-import { systemErrorDetail } from '@/internal/system-error.js';
+import { systemErrorDetail } from '@/internal/system-error';
 import {
   getPreflightSnapshots,
   type PreflightedPublication,
-} from '@/preflight/preflighted-publication.js';
-import { snapshotsEqual, type TargetSnapshot } from '@/preflight/target-snapshot.js';
-import { cleanupBackups, rollbackPublication } from './cleanup-publication.js';
-import type { PublishError, PublishWarning } from './publish-diagnostics.js';
-import type { PublicationResult, PublishedArtifact } from './publication-result.js';
+} from '@/preflight/preflighted-publication';
+import { snapshotsEqual, type TargetSnapshot } from '@/preflight/target-snapshot';
+import { cleanupBackups, rollbackPublication } from './cleanup-publication';
+import type { PublishError, PublishWarning } from './publish-diagnostics';
+import type { PublicationResult, PublishedArtifact } from './publication-result';
 import {
   ReplacementFailure,
   replaceOutputFile,
   type ReplacementState,
-} from './replace-output-file.js';
+} from './replace-output-file';
 
 interface PreparedFile {
   readonly artifactId: string;

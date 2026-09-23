@@ -1,20 +1,20 @@
 import path from 'node:path';
 
-import type { NormalizedRecordBatch } from '@/input/normalized-record-batch.js';
-import type { RecordData } from '@/input/record-data.js';
-import type { ValidatedRenderOptions } from '@/rendering/validated-render-options.js';
-import type { StageResult } from '@/stage-result.js';
-import type { FieldDefinition, ScalarFieldDefinition } from '@/template/field-definition.js';
-import type { TemplateDefinition } from '@/template/template-definition.js';
+import type { NormalizedRecordBatch } from '@/input/normalized-record-batch';
+import type { RecordData } from '@/input/record-data';
+import type { ValidatedRenderOptions } from '@/rendering/validated-render-options';
+import type { StageResult } from '@/stage-result';
+import type { FieldDefinition, ScalarFieldDefinition } from '@/template/field-definition';
+import type { TemplateDefinition } from '@/template/template-definition';
 import {
   artifactPathComparisonKey,
   validateArtifactPathSegment,
   validateArtifactRelativePath,
   validateStandaloneArtifactFileName,
-} from './artifact-path.js';
-import type { GenerationPlanError, GenerationPlanWarning } from './generation-diagnostics.js';
-import type { AggregatePlanItem, DocumentPlanItem, GenerationPlan } from './generation-plan.js';
-import type { DocumentOutputSelection, GenerationRequest } from './generation-request.js';
+} from './artifact-path';
+import type { GenerationPlanError, GenerationPlanWarning } from './generation-diagnostics';
+import type { AggregatePlanItem, DocumentPlanItem, GenerationPlan } from './generation-plan';
+import type { DocumentOutputSelection, GenerationRequest } from './generation-request';
 
 export interface CreateGenerationPlanInput {
   readonly definition: TemplateDefinition;

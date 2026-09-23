@@ -1,5 +1,5 @@
-import type { PublicationPlan } from '@/plan/publication-plan.js';
-import type { TargetSnapshot } from './target-snapshot.js';
+import type { PublicationPlan } from '@/plan/publication-plan';
+import type { TargetSnapshot } from './target-snapshot';
 
 declare const preflightedPublicationBrand: unique symbol;
 

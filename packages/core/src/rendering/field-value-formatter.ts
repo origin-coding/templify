@@ -1,12 +1,12 @@
 import dayjs from 'dayjs';
-import zhCn from 'dayjs/locale/zh-cn.js';
-import timezone from 'dayjs/plugin/timezone.js';
-import utc from 'dayjs/plugin/utc.js';
+import zhCn from 'dayjs/locale/zh-cn';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 
-import type { ScalarValue } from '@/input/record-data.js';
-import type { ScalarFieldDefinition } from '@/template/field-definition.js';
-import type { RenderLocale } from './render-options.js';
-import type { ValidatedFieldFormat, ValidatedRenderOptions } from './validated-render-options.js';
+import type { ScalarValue } from '@/input/record-data';
+import type { ScalarFieldDefinition } from '@/template/field-definition';
+import type { RenderLocale } from './render-options';
+import type { ValidatedFieldFormat, ValidatedRenderOptions } from './validated-render-options';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

@@ -9,8 +9,8 @@ import {
   prepareTemplate,
   type PdfConverter,
   type PdfMerger,
-} from '@/index.js';
-import { createDocx } from './docx-fixture.js';
+} from '@/index';
+import { createDocx } from './docx-fixture';
 
 const pdf = new TextEncoder().encode('%PDF-1.7\nfixture');
 

@@ -1,4 +1,4 @@
-import type { BundleStrategy, DocumentOutputSelection } from './generation-request.js';
+import type { BundleStrategy, DocumentOutputSelection } from './generation-request';
 
 export interface DocumentPlanItem {
   readonly documentId: string;

@@ -3,4 +3,4 @@ export {
   type PrepareGenerationError,
   type PrepareGenerationInput,
   type PrepareGenerationWarning,
-} from './prepare-generation.js';
+} from './prepare-generation';

@@ -1,22 +1,19 @@
-import type {
-  InputNormalizationError,
-  InputNormalizationWarning,
-} from '@/input/input-diagnostics.js';
-import { normalizeRecords } from '@/input/normalize-records.js';
-import type { RawInputBatch } from '@/input/raw-input.js';
-import { createGenerationPlan } from '@/generation/create-generation-plan.js';
+import type { InputNormalizationError, InputNormalizationWarning } from '@/input/input-diagnostics';
+import { normalizeRecords } from '@/input/normalize-records';
+import type { RawInputBatch } from '@/input/raw-input';
+import { createGenerationPlan } from '@/generation/create-generation-plan';
 import type {
   GenerationPlanError,
   GenerationPlanWarning,
   InvalidGenerationError,
-} from '@/generation/generation-diagnostics.js';
-import type { GenerationRequest } from '@/generation/generation-request.js';
-import { createGeneration, type Generation } from '@/generation/generation.js';
-import type { RenderOptions } from '@/rendering/render-options.js';
-import type { RenderOptionsError } from '@/rendering/rendering-diagnostics.js';
-import { validateRenderOptions } from '@/rendering/validate-render-options.js';
-import type { StageResult } from '@/stage-result.js';
-import type { PreparedTemplate } from '@/template/prepared-template.js';
+} from '@/generation/generation-diagnostics';
+import type { GenerationRequest } from '@/generation/generation-request';
+import { createGeneration, type Generation } from '@/generation/generation';
+import type { RenderOptions } from '@/rendering/render-options';
+import type { RenderOptionsError } from '@/rendering/rendering-diagnostics';
+import { validateRenderOptions } from '@/rendering/validate-render-options';
+import type { StageResult } from '@/stage-result';
+import type { PreparedTemplate } from '@/template/prepared-template';
 
 export interface PrepareGenerationInput {
   readonly template: PreparedTemplate;

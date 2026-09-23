@@ -1,13 +1,13 @@
-import type { NormalizedRecordBatch } from '@/input/normalized-record-batch.js';
+import type { NormalizedRecordBatch } from '@/input/normalized-record-batch';
 import {
   createFieldValueFormatter,
   type FieldValueFormatter,
-} from '@/rendering/field-value-formatter.js';
-import type { ValidatedRenderOptions } from '@/rendering/validated-render-options.js';
-import type { StageResult } from '@/stage-result.js';
-import { copyPreparedTemplateSource, type PreparedTemplate } from '@/template/prepared-template.js';
-import type { InvalidGenerationError } from './generation-diagnostics.js';
-import type { GenerationPlan } from './generation-plan.js';
+} from '@/rendering/field-value-formatter';
+import type { ValidatedRenderOptions } from '@/rendering/validated-render-options';
+import type { StageResult } from '@/stage-result';
+import { copyPreparedTemplateSource, type PreparedTemplate } from '@/template/prepared-template';
+import type { InvalidGenerationError } from './generation-diagnostics';
+import type { GenerationPlan } from './generation-plan';
 
 declare const generationBrand: unique symbol;
 

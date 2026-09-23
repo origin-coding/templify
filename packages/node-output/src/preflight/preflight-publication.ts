@@ -2,16 +2,16 @@
 import { lstat, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { StageResult } from '@templify/core';
-import { comparisonKey } from '@/internal/path-safety.js';
-import { systemErrorDetail } from '@/internal/system-error.js';
-import type { PublicationPlan } from '@/plan/publication-plan.js';
-import type { PublicationPreflightError } from './preflight-diagnostics.js';
+import { comparisonKey } from '@/internal/path-safety';
+import { systemErrorDetail } from '@/internal/system-error';
+import type { PublicationPlan } from '@/plan/publication-plan';
+import type { PublicationPreflightError } from './preflight-diagnostics';
 import {
   createPreflightedPublication,
   type PreflightedPublication,
   type PreflightedPublicationItem,
-} from './preflighted-publication.js';
-import type { TargetSnapshot } from './target-snapshot.js';
+} from './preflighted-publication';
+import type { TargetSnapshot } from './target-snapshot';
 
 export async function preflightPublication(
   plan: PublicationPlan,

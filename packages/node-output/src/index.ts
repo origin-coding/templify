@@ -1,3 +1,3 @@
-export * from './plan/index.js';
-export * from './preflight/index.js';
-export * from './publish/index.js';
+export * from './plan/index';
+export * from './preflight/index';
+export * from './publish/index';

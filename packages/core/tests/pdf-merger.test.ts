@@ -1,7 +1,7 @@
 import { PDFDocument } from '@cantoo/pdf-lib';
 import { describe, expect, it } from 'vitest';
 
-import { cantooPdfMerger } from '@/index.js';
+import { cantooPdfMerger } from '@/index';
 
 describe('cantooPdfMerger', () => {
   it('copies every page in document order', async () => {

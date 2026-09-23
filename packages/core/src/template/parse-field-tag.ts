@@ -1,5 +1,5 @@
-import type { TemplatePreparationError } from './template-diagnostics.js';
-import type { FieldHint, ScalarFieldDefinition } from './field-definition.js';
+import type { TemplatePreparationError } from './template-diagnostics';
+import type { FieldHint, ScalarFieldDefinition } from './field-definition';
 
 const UNSUPPORTED_TAG_PREFIXES = new Set(['#', '/', '@', '%', '~', ':', '$']);
 const SIMPLE_HINTS = new Set(['string', 'number', 'boolean', 'date', 'datetime']);
@@ -40,7 +40,7 @@ export function parseFieldTag(tag: string): ScalarFieldDefinition {
   };
 }
 
-export function parseCollectionTag(tag: string, rawTag = tag): string {
+export function parseCollectionTag(tag: string, rawTag: string = tag): string {
   const normalizedTag = tag.trim();
   if (UNSUPPORTED_TAG_PREFIXES.has(normalizedTag[0] ?? '')) {
     throw new TemplateTagFailure({

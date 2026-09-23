@@ -1,18 +1,18 @@
 import Docxtemplater from 'docxtemplater';
-import InspectModulePackage from 'docxtemplater/js/inspect-module.js';
+import InspectModulePackage from 'docxtemplater/js/inspect-module';
 import PizZip from 'pizzip';
 
-import type { StageResult } from '@/stage-result.js';
-import { createPreparedTemplate, type PreparedTemplate } from './prepared-template.js';
-import { parseCollectionTag, parseFieldTag, TemplateTagFailure } from './parse-field-tag.js';
-import type { TemplatePreparationError } from './template-diagnostics.js';
-import type { TemplateDefinition } from './template-definition.js';
+import type { StageResult } from '@/stage-result';
+import { createPreparedTemplate, type PreparedTemplate } from './prepared-template';
+import { parseCollectionTag, parseFieldTag, TemplateTagFailure } from './parse-field-tag';
+import type { TemplatePreparationError } from './template-diagnostics';
+import type { TemplateDefinition } from './template-definition';
 import type {
   CollectionFieldDefinition,
   FieldDefinition,
   FieldHint,
   ScalarFieldDefinition,
-} from './field-definition.js';
+} from './field-definition';
 
 interface StructuredTag {
   readonly module?: string;

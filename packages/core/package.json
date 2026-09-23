@@ -13,11 +13,11 @@
     }
   },
   "scripts": {
-    "build": "vite build && pnpm run build:types",
-    "build:types": "tsc -p tsconfig.build.json && node ../../scripts/rewrite-declaration-aliases.mjs dist",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "test": "vitest",
     "test:run": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.test.json --pretty false && tsc -p tsconfig.config.json --pretty false"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "2.11.1",
@@ -30,8 +30,8 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "tsdown": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

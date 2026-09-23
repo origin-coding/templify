@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import filenameReservedRegex, { windowsReservedNameRegex } from 'filename-reserved-regex';
 
-import type { ArtifactPathErrorReason } from './generation-diagnostics.js';
+import type { ArtifactPathErrorReason } from './generation-diagnostics';
 
 export const MAX_FILENAME_UTF16_CODE_UNITS = 255;
 

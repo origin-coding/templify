@@ -1,8 +1,8 @@
-export { createGenerationPlan } from './create-generation-plan.js';
+export { createGenerationPlan } from './create-generation-plan';
 export type {
   CreateGenerationPlanInput,
   CreateGenerationPlanResult,
-} from './create-generation-plan.js';
+} from './create-generation-plan';
 export type {
   ArtifactPathErrorReason,
   GenerationError,
@@ -12,13 +12,13 @@ export type {
   InvalidGenerationError,
   NamingValueSanitizedWarning,
   PdfConversionLossWarning,
-} from './generation-diagnostics.js';
+} from './generation-diagnostics';
 export type {
   AggregatePlanItem,
   DocumentPlanItem,
   GenerationPlan,
   MergedPdfPlanItem,
-} from './generation-plan.js';
+} from './generation-plan';
 export type {
   AggregateRequest,
   BundleStrategy,
@@ -26,6 +26,6 @@ export type {
   GenerationNaming,
   GenerationRequest,
   MergedPdfRequest,
-} from './generation-request.js';
-export { generateArtifacts, type GenerationDependencies } from './generate-artifacts.js';
-export { createGeneration, type Generation } from './generation.js';
+} from './generation-request';
+export { generateArtifacts, type GenerationDependencies } from './generate-artifacts';
+export { createGeneration, type Generation } from './generation';

@@ -1,6 +1,3 @@
-export type { PublicationPreflightError } from './preflight-diagnostics.js';
-export { preflightPublication } from './preflight-publication.js';
-export type {
-  PreflightedPublication,
-  PreflightedPublicationItem,
-} from './preflighted-publication.js';
+export type { PublicationPreflightError } from './preflight-diagnostics';
+export { preflightPublication } from './preflight-publication';
+export type { PreflightedPublication, PreflightedPublicationItem } from './preflighted-publication';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { derivePublicationManifest, prepareGeneration, prepareTemplate } from '@/index.js';
-import { createDocx } from './docx-fixture.js';
+import { derivePublicationManifest, prepareGeneration, prepareTemplate } from '@/index';
+import { createDocx } from './docx-fixture';
 
 describe('generation planning', () => {
   it('treats interpolated values as segments and sanitizes path separators', () => {

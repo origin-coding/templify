@@ -1,4 +1,4 @@
-import type { InputRowOrigin } from './record-origin.js';
+import type { InputRowOrigin } from './record-origin';
 
 export interface ObjectRowsInput {
   readonly kind: 'object-rows';

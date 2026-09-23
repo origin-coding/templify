@@ -1,6 +1,6 @@
-export { validateRenderOptions } from './validate-render-options.js';
-export type { ValidateRenderOptionsResult } from './validate-render-options.js';
-export type { DocumentRenderError, RenderOptionsError } from './rendering-diagnostics.js';
+export { validateRenderOptions } from './validate-render-options';
+export type { ValidateRenderOptionsResult } from './validate-render-options';
+export type { DocumentRenderError, RenderOptionsError } from './rendering-diagnostics';
 export type {
   BooleanFieldFormat,
   DateFieldFormat,
@@ -11,9 +11,9 @@ export type {
   NumberFieldFormat,
   RenderLocale,
   RenderOptions,
-} from './render-options.js';
+} from './render-options';
 export type {
   ValidatedFieldFormat,
   ValidatedFieldFormatRule,
   ValidatedRenderOptions,
-} from './validated-render-options.js';
+} from './validated-render-options';

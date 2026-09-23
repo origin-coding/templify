@@ -1,5 +1,5 @@
-import type { RecordData } from './record-data.js';
-import type { RecordOrigin } from './record-origin.js';
+import type { RecordData } from './record-data';
+import type { RecordOrigin } from './record-origin';
 
 export interface NormalizedRecordBatch {
   readonly records: readonly RecordData[];

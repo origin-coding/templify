@@ -1,6 +1,6 @@
-import type { StageResult } from '@/stage-result.js';
-import type { FieldDefinition, ScalarFieldDefinition } from '@/template/field-definition.js';
-import type { TemplateDefinition } from '@/template/template-definition.js';
+import type { StageResult } from '@/stage-result';
+import type { FieldDefinition, ScalarFieldDefinition } from '@/template/field-definition';
+import type { TemplateDefinition } from '@/template/template-definition';
 import type {
   BooleanFieldFormat,
   DateFieldFormat,
@@ -10,13 +10,13 @@ import type {
   NumberFieldFormat,
   RenderLocale,
   RenderOptions,
-} from './render-options.js';
-import type { RenderOptionsError } from './rendering-diagnostics.js';
+} from './render-options';
+import type { RenderOptionsError } from './rendering-diagnostics';
 import type {
   ValidatedFieldFormat,
   ValidatedFieldFormatRule,
   ValidatedRenderOptions,
-} from './validated-render-options.js';
+} from './validated-render-options';
 
 const DEFAULT_DATE_PATTERN = 'YYYY-MM-DD';
 const DEFAULT_DATETIME_PATTERN = 'YYYY-MM-DD HH:mm:ss';

@@ -60,7 +60,7 @@ export type GenerationError =
       readonly code: 'DocumentRenderFailed';
       readonly documentId: string;
       readonly recordIndex: number;
-      readonly detail: import('../rendering/rendering-diagnostics.js').DocumentRenderError;
+      readonly detail: import('../rendering/rendering-diagnostics').DocumentRenderError;
     }
   | {
       readonly code: 'PdfConverterUnavailable';

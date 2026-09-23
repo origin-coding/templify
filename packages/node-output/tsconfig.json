@@ -1,8 +1,15 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.bundler.json",
   "compilerOptions": {
-    "paths": { "@/*": ["./src/*"] },
-    "types": ["node"]
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "paths": {
+      "@/*": ["./src/*", "../core/src/*"],
+      "@templify/core": ["../core/src/index.ts"]
+    },
+    "types": ["node"],
+    "declaration": true,
+    "isolatedDeclarations": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "../core/src/types/**/*.d.ts"]
 }

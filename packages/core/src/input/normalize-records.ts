@@ -1,19 +1,16 @@
-import type { StageResult } from '@/stage-result.js';
-import type {
-  CollectionFieldDefinition,
-  ScalarFieldDefinition,
-} from '@/template/field-definition.js';
-import type { TemplateDefinition } from '@/template/template-definition.js';
+import type { StageResult } from '@/stage-result';
+import type { CollectionFieldDefinition, ScalarFieldDefinition } from '@/template/field-definition';
+import type { TemplateDefinition } from '@/template/template-definition';
 import type {
   InputDiagnosticLocation,
   InputNormalizationError,
   InputNormalizationWarning,
   InputValueType,
-} from './input-diagnostics.js';
-import type { NormalizedRecordBatch } from './normalized-record-batch.js';
-import type { RawInputBatch, TabularInput } from './raw-input.js';
-import type { CollectionData, CollectionItemData, RecordData, ScalarValue } from './record-data.js';
-import type { InputRowOrigin, RecordOrigin } from './record-origin.js';
+} from './input-diagnostics';
+import type { NormalizedRecordBatch } from './normalized-record-batch';
+import type { RawInputBatch, TabularInput } from './raw-input';
+import type { CollectionData, CollectionItemData, RecordData, ScalarValue } from './record-data';
+import type { InputRowOrigin, RecordOrigin } from './record-origin';
 
 const NUMBER_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;

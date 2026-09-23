@@ -1,4 +1,4 @@
-import type { TemplateDefinition } from './template-definition.js';
+import type { TemplateDefinition } from './template-definition';
 
 declare const preparedTemplateBrand: unique symbol;
 

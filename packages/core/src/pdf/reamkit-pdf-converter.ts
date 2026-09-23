@@ -1,6 +1,6 @@
 import { Ream } from 'reamkit';
 
-import type { PdfConverter } from './pdf-converter.js';
+import type { PdfConverter } from './pdf-converter';
 
 export const reamkitPdfConverter: PdfConverter = {
   id: 'reamkit',

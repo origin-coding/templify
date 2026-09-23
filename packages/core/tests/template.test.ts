@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { prepareTemplate } from '@/index.js';
-import { parseFieldTag } from '@/template/parse-field-tag.js';
-import { createDocx } from './docx-fixture.js';
+import { prepareTemplate } from '@/index';
+import { parseFieldTag } from '@/template/parse-field-tag';
+import { createDocx } from './docx-fixture';
 
 describe('template preparation', () => {
   it.each([

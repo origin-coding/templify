@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRecords, type TemplateDefinition } from '@/index.js';
+import { normalizeRecords, type TemplateDefinition } from '@/index';
 
 const definition: TemplateDefinition = {
   version: 1,

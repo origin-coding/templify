@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop -- Rollback must unwind replacements in reverse order. */
 import { rm, rename, rmdir } from 'node:fs/promises';
-import type { PublishWarning } from './publish-diagnostics.js';
-import type { ReplacementState } from './replace-output-file.js';
-import { systemErrorDetail } from '@/internal/system-error.js';
+import type { PublishWarning } from './publish-diagnostics';
+import type { ReplacementState } from './replace-output-file';
+import { systemErrorDetail } from '@/internal/system-error';
 
 export async function rollbackPublication(
   replacements: readonly ReplacementState[],

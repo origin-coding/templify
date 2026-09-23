@@ -1,5 +1,5 @@
-import type { StageResult } from '@/stage-result.js';
-import type { TabularInput } from '@/input/raw-input.js';
+import type { StageResult } from '@/stage-result';
+import type { TabularInput } from '@/input/raw-input';
 
 export type TabularInputFormat = 'csv' | 'xlsx';
 

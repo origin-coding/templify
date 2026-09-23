@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop -- Page copying mutates one destination and must preserve document order. */
 import { PDFDocument } from '@cantoo/pdf-lib';
 
-import type { PdfMerger } from '@/pdf/pdf-merger.js';
+import type { PdfMerger } from '@/pdf/pdf-merger';
 
 export const cantooPdfMerger: PdfMerger = {
   async merge(documents) {

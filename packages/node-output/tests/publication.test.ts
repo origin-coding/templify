@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { PublicationManifest, PublishableArtifactSet } from '@templify/core';
-import { createPublicationPlan, preflightPublication, publishArtifacts } from '@/index.js';
+import { createPublicationPlan, preflightPublication, publishArtifacts } from '@/index';
 
 const roots: string[] = [];
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value);

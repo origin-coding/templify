@@ -1,5 +1,5 @@
-import type { GenerationPlan } from '@/generation/generation-plan.js';
-import type { PublishableArtifactKind } from './publishable-artifact.js';
+import type { GenerationPlan } from '@/generation/generation-plan';
+import type { PublishableArtifactKind } from './publishable-artifact';
 
 export interface PublicationManifestItem {
   readonly artifactId: string;

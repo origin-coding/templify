@@ -1,4 +1,4 @@
-import type { InputDataPath } from '@/input/input-diagnostics.js';
+import type { InputDataPath } from '@/input/input-diagnostics';
 
 export type RenderOptionsError = {
   readonly code: 'InvalidRenderOptions';

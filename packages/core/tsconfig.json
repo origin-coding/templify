@@ -1,8 +1,12 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.bundler.json",
   "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
     "paths": { "@/*": ["./src/*"] },
-    "types": ["node"]
+    "types": ["node"],
+    "declaration": true,
+    "isolatedDeclarations": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts"]
 }

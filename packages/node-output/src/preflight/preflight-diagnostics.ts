@@ -1,4 +1,4 @@
-import type { SystemErrorDetail } from '@/internal/system-error.js';
+import type { SystemErrorDetail } from '@/internal/system-error';
 
 export type PublicationPreflightError =
   | ({ readonly code: 'OutputRootUnavailable'; readonly path: string } & SystemErrorDetail)
