@@ -3,10 +3,13 @@
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024"],
-    "paths": { "@/*": ["./src/*"] },
+    "paths": {
+      "@/*": ["./src/*", "../core/src/*"],
+      "@templify/core": ["../core/src/index.ts"]
+    },
     "types": ["node"],
     "declaration": true,
     "isolatedDeclarations": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../core/src/types/**/*.d.ts"]
 }

@@ -13,7 +13,7 @@
     "lint:fix": "oxlint . --fix",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests",
-    "typecheck": "tsc --build --pretty false"
+    "typecheck": "tsc -p tsconfig.json --pretty false && pnpm --recursive --filter \"./packages/**\" --if-present typecheck"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -23,7 +23,7 @@
     "vitest": "catalog:"
   },
   "engines": {
-    "node": ">=24.0.0",
+    "node": ">=24.11.0",
     "pnpm": ">=11.0.0"
   },
   "packageManager": "pnpm@11.9.0"
