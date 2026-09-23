@@ -79,6 +79,7 @@ export async function generateArtifacts(
       });
     }
     if (needsPdf) {
+      const pdfPath = replaceExtension(document.docxPath, '.pdf');
       let converted;
       try {
         converted = await converter.convert(docx);
@@ -89,6 +90,7 @@ export async function generateArtifacts(
             converterId: converter.id,
             documentId: document.documentId,
             recordIndex: document.recordIndex,
+            relativePath: pdfPath,
             reason: 'ConversionFailed',
           },
           warnings,
@@ -101,6 +103,7 @@ export async function generateArtifacts(
             converterId: converter.id,
             documentId: document.documentId,
             recordIndex: document.recordIndex,
+            relativePath: pdfPath,
             reason: 'InvalidPdfOutput',
           },
           warnings,
@@ -119,7 +122,7 @@ export async function generateArtifacts(
         artifacts.push({
           artifactId: `${document.documentId}:pdf`,
           kind: 'pdf',
-          relativePath: replaceExtension(document.docxPath, '.pdf'),
+          relativePath: pdfPath,
           bytes: converted.bytes,
         });
       }
@@ -128,18 +131,44 @@ export async function generateArtifacts(
 
   for (const aggregate of generation.plan.aggregates) {
     const merger = dependencies.pdfMerger ?? cantooPdfMerger;
-    const sources = aggregate.sourceDocumentIds.map((id) => pdfByDocument.get(id));
-    if (sources.some((source) => source === undefined)) {
-      return failure({ code: 'PdfMergeFailed', aggregateId: aggregate.aggregateId }, warnings);
+    const missingSourceId = aggregate.sourceDocumentIds.find((id) => !pdfByDocument.has(id));
+    if (missingSourceId !== undefined) {
+      return failure(
+        {
+          code: 'PdfMergeFailed',
+          aggregateId: aggregate.aggregateId,
+          relativePath: aggregate.relativePath,
+          reason: 'MissingSourcePdf',
+          sourceDocumentId: missingSourceId,
+        },
+        warnings,
+      );
     }
+    const sources = aggregate.sourceDocumentIds.map((id) => pdfByDocument.get(id));
     let merged: Uint8Array;
     try {
       merged = await merger.merge(sources as Uint8Array[]);
     } catch {
-      return failure({ code: 'PdfMergeFailed', aggregateId: aggregate.aggregateId }, warnings);
+      return failure(
+        {
+          code: 'PdfMergeFailed',
+          aggregateId: aggregate.aggregateId,
+          relativePath: aggregate.relativePath,
+          reason: 'MergeFailed',
+        },
+        warnings,
+      );
     }
     if (!isPdf(merged))
-      return failure({ code: 'PdfMergeFailed', aggregateId: aggregate.aggregateId }, warnings);
+      return failure(
+        {
+          code: 'PdfMergeFailed',
+          aggregateId: aggregate.aggregateId,
+          relativePath: aggregate.relativePath,
+          reason: 'InvalidPdfOutput',
+        },
+        warnings,
+      );
     artifacts.push({
       artifactId: `${aggregate.aggregateId}:pdf`,
       kind: 'merged-pdf',
