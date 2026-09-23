@@ -72,9 +72,22 @@ export type GenerationError =
       readonly converterId: string;
       readonly documentId: string;
       readonly recordIndex: number;
+      readonly relativePath: string;
       readonly reason: 'ConversionFailed' | 'InvalidPdfOutput';
     }
-  | { readonly code: 'PdfMergeFailed'; readonly aggregateId: string };
+  | {
+      readonly code: 'PdfMergeFailed';
+      readonly aggregateId: string;
+      readonly relativePath: string;
+      readonly reason: 'MissingSourcePdf';
+      readonly sourceDocumentId: string;
+    }
+  | {
+      readonly code: 'PdfMergeFailed';
+      readonly aggregateId: string;
+      readonly relativePath: string;
+      readonly reason: 'MergeFailed' | 'InvalidPdfOutput';
+    };
 
 export interface PdfConversionLossWarning {
   readonly code: 'PdfConversionLoss';
