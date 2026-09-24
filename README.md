@@ -42,7 +42,7 @@ See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for
 
 Requirements:
 
-- Node.js 24 or later.
+- Node.js 24.11 or later.
 - pnpm 11.
 
 Install dependencies:
@@ -65,6 +65,46 @@ pnpm lint
 pnpm typecheck
 pnpm test:run
 pnpm build
+```
+
+## CLI
+
+The CLI currently supports template inspection and one manual record per DOCX output.
+It uses the same core pipeline as future desktop adapters.
+
+For development, run the build watcher in one terminal:
+
+```shell
+pnpm --filter @templify/cli dev
+```
+
+After its first build, run a CLI command in another terminal:
+
+```shell
+pnpm --filter @templify/cli start inspect template.docx
+```
+
+The watcher rebuilds after source changes; rerun the CLI command to try them. To
+use breakpoints, debug `apps/cli/dist/index.js` in an IDE. Source maps point back
+to the TypeScript source.
+
+For a one-off build or a packaged CLI check:
+
+```shell
+pnpm --filter @templify/cli build
+node apps/cli/dist/index.js inspect template.docx --format json
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx --dry-run
+```
+
+Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
+replace existing output; pass `--overwrite` to replace it. Diagnostics go to stderr,
+while command results go to stdout.
+
+Check the packed executable from an isolated installation with:
+
+```shell
+pnpm --filter @templify/cli smoke
 ```
 
 ## Contributing

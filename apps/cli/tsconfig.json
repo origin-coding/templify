@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["../../packages/node-output/src/*", "../../packages/core/src/*"],
+      "@templify/core": ["../../packages/core/src/index.ts"],
+      "@templify/node-output": ["../../packages/node-output/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/core/src/types/**/*.d.ts"]
+}
