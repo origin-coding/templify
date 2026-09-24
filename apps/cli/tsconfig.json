@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.node.json",
-  "compilerOptions": { "allowImportingTsExtensions": true },
+  "compilerOptions": { "module": "Preserve", "moduleResolution": "Bundler" },
   "include": ["src/**/*.ts"]
 }

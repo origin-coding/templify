@@ -72,6 +72,24 @@ pnpm build
 The CLI currently supports template inspection and one manual record per DOCX output.
 It uses the same core pipeline as future desktop adapters.
 
+For development, run the build watcher in one terminal:
+
+```shell
+pnpm --filter @templify/cli dev
+```
+
+After its first build, run a CLI command in another terminal:
+
+```shell
+pnpm --filter @templify/cli start inspect template.docx
+```
+
+The watcher rebuilds after source changes; rerun the CLI command to try them. To
+use breakpoints, debug `apps/cli/dist/index.js` in an IDE. Source maps point back
+to the TypeScript source.
+
+For a one-off build or a packaged CLI check:
+
 ```shell
 pnpm --filter @templify/cli build
 node apps/cli/dist/index.js inspect template.docx --format json

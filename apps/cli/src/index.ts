@@ -2,7 +2,7 @@
 import { readFile, writeFile, lstat, stat, rename, unlink, open } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createConsola } from 'consola';
+import { createConsola } from 'consola/basic';
 import { cli, define, isCommandNotFoundError } from 'gunshi';
 import { getBorderCharacters, table } from 'table';
 import {
@@ -20,9 +20,9 @@ import {
   publishArtifacts,
 } from '@templify/node-output';
 import packageJson from '../package.json' with { type: 'json' };
-import { formatDiagnostic } from './format-diagnostic.ts';
+import { formatDiagnostic } from './format-diagnostic';
 
-const diagnostics = createConsola({ fancy: false, stdout: process.stderr, stderr: process.stderr });
+const diagnostics = createConsola({ stdout: process.stderr, stderr: process.stderr });
 
 class CliFailure extends Error {
   readonly exitCode: 1 | 2;
