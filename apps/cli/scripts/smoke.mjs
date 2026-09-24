@@ -110,7 +110,7 @@ try {
       'agea=25',
       '--set',
       '你好=c你好',
-      '--output',
+      '--output-file',
       path.join(temp, 'missing-field-output.docx'),
     ],
     cliRoot,
@@ -130,26 +130,44 @@ try {
       template,
       '--set',
       'name=Alice',
-      '--output',
+      '--output-file',
       output,
       '--dry-run',
     ]).stdout,
     /create/u,
   );
-  run(process.execPath, [bin, 'generate', template, '--set', 'name=Alice', '--output', output]);
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--set',
+    'name=Alice',
+    '--output-file',
+    output,
+  ]);
   assert.equal(
     run(process.execPath, [bin, 'inspect', output, '--format', 'json']).stdout.includes('"name"'),
     false,
   );
   run(
     process.execPath,
-    [bin, 'generate', template, '--set', 'name=Alice', '--output', output],
+    [bin, 'generate', template, '--set', 'name=Alice', '--output-file', output],
     cliRoot,
     1,
   );
   run(
     process.execPath,
-    [bin, 'generate', template, '--set', 'name=Alice', '--set', 'name=Bob', '--output', output],
+    [
+      bin,
+      'generate',
+      template,
+      '--set',
+      'name=Alice',
+      '--set',
+      'name=Bob',
+      '--output-file',
+      output,
+    ],
     cliRoot,
     2,
   );

@@ -93,8 +93,8 @@ For a one-off build or a packaged CLI check:
 ```shell
 pnpm --filter @templify/cli build
 node apps/cli/dist/index.js inspect template.docx --format json
-node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx
-node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx --dry-run
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx --dry-run
 ```
 
 Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
