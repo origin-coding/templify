@@ -73,7 +73,12 @@ const generate = define({
   args: {
     template: { type: 'positional', description: 'DOCX template path' },
     set: { type: 'string', multiple: true, description: 'Field value (repeat: --set field=value)' },
-    output: { type: 'string', required: true, description: 'Output DOCX path' },
+    outputFile: {
+      type: 'string',
+      toKebab: true,
+      required: true,
+      description: 'Output DOCX path',
+    },
     overwrite: { type: 'boolean', description: 'Replace an existing output file' },
     dryRun: {
       type: 'boolean',
@@ -83,7 +88,7 @@ const generate = define({
   },
   async run(ctx) {
     const templatePath = path.resolve(ctx.values.template);
-    const outputPath = path.resolve(ctx.values.output);
+    const outputPath = path.resolve(ctx.values.outputFile);
     const source = await readFile(templatePath);
     const prepared = requireStage(prepareTemplate(source));
     const record = parseSetValues(ctx.values.set ?? []);
