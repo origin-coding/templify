@@ -2,7 +2,9 @@
 import { readFile, writeFile, lstat, stat, rename, unlink, open } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createConsola } from 'consola';
 import { cli, define, isCommandNotFoundError } from 'gunshi';
+import { getBorderCharacters, table } from 'table';
 import {
   derivePublicationManifest,
   generateArtifacts,
@@ -18,6 +20,9 @@ import {
   publishArtifacts,
 } from '@templify/node-output';
 import packageJson from '../package.json' with { type: 'json' };
+import { formatDiagnostic } from './format-diagnostic.ts';
+
+const diagnostics = createConsola({ fancy: false, stdout: process.stderr, stderr: process.stderr });
 
 class CliFailure extends Error {
   readonly exitCode: 1 | 2;
@@ -141,19 +146,10 @@ function renderFieldTable(definition: TemplateDefinition): string {
     field.kind === 'scalar' ? field.hint.type : 'collection',
     field.kind === 'scalar' && field.hint.type === 'option' ? field.hint.values.join(', ') : '',
   ]);
-  const widths = [0, 1, 2].map((index) =>
-    Math.max(['FIELD', 'TYPE', 'OPTIONS'][index]!.length, ...rows.map((row) => row[index]!.length)),
-  );
-  return (
-    [['FIELD', 'TYPE', 'OPTIONS'], ...rows]
-      .map((row) =>
-        row
-          .map((cell, index) => cell.padEnd(widths[index]!))
-          .join('  ')
-          .trimEnd(),
-      )
-      .join('\n') + '\n'
-  );
+  return table([['FIELD', 'TYPE', 'OPTIONS'], ...rows], {
+    border: getBorderCharacters('norc'),
+    drawHorizontalLine: (index, rowCount) => index === 0 || index === 1 || index === rowCount,
+  });
 }
 
 async function writeInspectionOutput(
@@ -212,10 +208,8 @@ async function writeInspectionOutput(
 }
 
 function requireStage<T, E, W>(result: StageResult<T, E, W>): T {
-  for (const warning of result.warnings)
-    process.stderr.write(`Warning: ${JSON.stringify(warning)}\n`);
-  if (!result.ok)
-    throw new CliFailure(result.errors.map((error) => JSON.stringify(error)).join('\n'));
+  for (const warning of result.warnings) diagnostics.warn(formatDiagnostic(warning));
+  if (!result.ok) throw new CliFailure(result.errors.map(formatDiagnostic).join('\n'));
   return result.value;
 }
 async function main(): Promise<void> {
@@ -244,20 +238,20 @@ async function main(): Promise<void> {
   } catch (error) {
     if (error instanceof AggregateError) {
       for (const issue of error.errors) {
-        process.stderr.write(`${issue instanceof Error ? issue.message : String(issue)}\n`);
+        diagnostics.error(issue instanceof Error ? issue.message : String(issue));
       }
       await printUsage(args, options);
       process.exitCode = 2;
     } else if (isCommandNotFoundError(error)) {
-      process.stderr.write(`${error.message}\n`);
+      diagnostics.error(error.message);
       await printUsage([], options);
       process.exitCode = 2;
     } else if (error instanceof CliFailure) {
-      process.stderr.write(`${error.message}\n`);
+      diagnostics.error(error.message);
       if (error.exitCode === 2) await printUsage(args, options);
       process.exitCode = error.exitCode;
     } else {
-      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      diagnostics.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
     }
   }

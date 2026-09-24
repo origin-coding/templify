@@ -52,6 +52,13 @@ try {
   await writeFile(template, createDocx([['Hello {name}!']]));
 
   assert.match(run(process.execPath, [bin, '--help']).stdout, /inspect/u);
+  const tableTemplate = path.join(temp, 'table-template.docx');
+  await writeFile(tableTemplate, createDocx([['{名字:string} {部门:option["研发","Sales"]}']]));
+  const tableOutput = run(process.execPath, [bin, 'inspect', tableTemplate]);
+  assert.match(tableOutput.stdout, /FIELD.*TYPE.*OPTIONS/u);
+  assert.match(tableOutput.stdout, /名字.*string/u);
+  assert.match(tableOutput.stdout, /部门.*option.*研发, Sales/u);
+  assert.equal(tableOutput.stderr, '');
   const inspected = run(process.execPath, [bin, 'inspect', template, '--format', 'json']);
   assert.deepEqual(
     JSON.parse(inspected.stdout).fields.map((field) => field.name),
@@ -61,12 +68,14 @@ try {
   const inspectionPath = path.join(temp, 'fields.json');
   run(process.execPath, [bin, 'inspect', template, '--format', 'json', '--output', inspectionPath]);
   const inspection = await readFile(inspectionPath, 'utf8');
-  run(
+  const conflict = run(
     process.execPath,
     [bin, 'inspect', template, '--format', 'json', '--output', inspectionPath],
     cliRoot,
     1,
   );
+  assert.equal(conflict.stdout, '');
+  assert.match(conflict.stderr, /Output already exists/u);
   run(process.execPath, [
     bin,
     'inspect',
@@ -87,6 +96,32 @@ try {
     cliRoot,
     1,
   );
+  const missingFieldTemplate = path.join(temp, 'missing-field.docx');
+  await writeFile(missingFieldTemplate, createDocx([['{name} {age:number} {你好}']]));
+  const missingField = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      missingFieldTemplate,
+      '--set',
+      'name=孙强',
+      '--set',
+      'agea=25',
+      '--set',
+      '你好=c你好',
+      '--output',
+      path.join(temp, 'missing-field-output.docx'),
+    ],
+    cliRoot,
+    1,
+  );
+  assert.equal(missingField.stdout, '');
+  assert.match(missingField.stderr, /Ignored input field\(s\) "agea"/u);
+  assert.match(missingField.stderr, /Missing template field "age"/u);
+  assert.match(missingField.stderr, /--set age=<value>/u);
+  assert.doesNotMatch(missingField.stderr, /\{"stage":/u);
+
   const output = path.join(temp, 'output.docx');
   assert.match(
     run(process.execPath, [

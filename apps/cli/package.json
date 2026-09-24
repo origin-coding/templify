@@ -15,7 +15,9 @@
     "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.config.json --pretty false"
   },
   "dependencies": {
-    "gunshi": "^0.37.3"
+    "consola": "^3.4.2",
+    "gunshi": "^0.37.3",
+    "table": "^6.9.0"
   },
   "devDependencies": {
     "@templify/core": "workspace:*",
