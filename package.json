@@ -13,7 +13,7 @@
     "lint:fix": "oxlint . --fix",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.json --pretty false && pnpm --recursive --filter \"./packages/**\" --if-present typecheck"
+    "typecheck": "tsc -p tsconfig.json --pretty false && pnpm --recursive --filter \"./packages/**\" --filter \"./apps/**\" --if-present typecheck"
   },
   "devDependencies": {
     "@types/node": "catalog:",

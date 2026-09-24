@@ -42,7 +42,7 @@ See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for
 
 Requirements:
 
-- Node.js 24 or later.
+- Node.js 24.11 or later.
 - pnpm 11.
 
 Install dependencies:
@@ -65,6 +65,28 @@ pnpm lint
 pnpm typecheck
 pnpm test:run
 pnpm build
+```
+
+## CLI
+
+The CLI currently supports template inspection and one manual record per DOCX output.
+It uses the same core pipeline as future desktop adapters.
+
+```shell
+pnpm --filter @templify/cli build
+node apps/cli/dist/index.js inspect template.docx --format json
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output output.docx --dry-run
+```
+
+Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
+replace existing output; pass `--overwrite` to replace it. Diagnostics go to stderr,
+while command results go to stdout.
+
+Check the packed executable from an isolated installation with:
+
+```shell
+pnpm --filter @templify/cli smoke
 ```
 
 ## Contributing
