@@ -142,7 +142,12 @@ describe('core pipeline', () => {
       stage: 'input',
       issue: expect.objectContaining({
         code: 'InvalidInputValue',
-        location: { inputRowIndex: 0, sourceRowNumber: 2, path: ['enabled'] },
+        location: {
+          inputRowIndex: 0,
+          sourceRowNumber: 2,
+          sourceColumnNumber: 1,
+          path: ['enabled'],
+        },
       }),
     });
   });

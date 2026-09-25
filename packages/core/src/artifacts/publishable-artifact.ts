@@ -1,4 +1,4 @@
-export type PublishableArtifactKind = 'docx' | 'pdf' | 'merged-pdf' | 'zip';
+export type PublishableArtifactKind = 'docx' | 'pdf' | 'merged-pdf' | 'zip' | 'file';
 
 export interface PublishableArtifact {
   readonly artifactId: string;

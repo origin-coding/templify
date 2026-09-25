@@ -25,6 +25,7 @@ export type InputValueType =
   | 'bigint';
 
 export type InputNormalizationError =
+  | { readonly code: 'NoMatchingInputFields'; readonly columnNames: readonly string[] }
   | {
       readonly code: 'InvalidInputShape';
       readonly reason: 'ExpectedRowsArray' | 'ExpectedRowObject' | 'InvalidOriginCount';
