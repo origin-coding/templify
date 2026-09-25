@@ -51,6 +51,19 @@ describe('record normalization', () => {
     });
   });
 
+  it('suggests checking the header when no template field matches', () => {
+    expect(
+      normalizeRecords(definition, {
+        kind: 'tabular',
+        columns: ['Alice', 'Sales'],
+        rows: [['Bob', 'Finance']],
+      }),
+    ).toMatchObject({
+      ok: false,
+      errors: expect.arrayContaining([expect.objectContaining({ code: 'NoMatchingInputFields' })]),
+    });
+  });
+
   it('rejects duplicate and missing columns while ignoring extras and empty rows', () => {
     expect(
       normalizeRecords(definition, { kind: 'tabular', columns: ['text', 'text'], rows: [] }),

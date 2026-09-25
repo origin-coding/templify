@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { readFile, writeFile, lstat, stat, rename, unlink, open } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { createConsola } from 'consola/basic';
 import { cli, define, isCommandNotFoundError } from 'gunshi';
 import { getBorderCharacters, table } from 'table';
@@ -18,7 +17,13 @@ import {
   createPublicationPlan,
   preflightPublication,
   publishArtifacts,
+  publishStandaloneFile,
 } from '@templify/node-output';
+import {
+  createCsvTemplate,
+  parseCsvInput,
+  validateScalarTabularTemplate,
+} from '@templify/tabular-input';
 import packageJson from '../package.json' with { type: 'json' };
 import { formatDiagnostic } from './format-diagnostic';
 
@@ -40,7 +45,7 @@ const inspect = define({
     template: { type: 'positional', description: 'DOCX template path' },
     format: {
       type: 'enum',
-      choices: ['table', 'json'],
+      choices: ['table', 'json', 'csv-template'],
       default: 'table',
       description: 'Output format',
     },
@@ -49,80 +54,137 @@ const inspect = define({
   },
   async run(ctx) {
     const templatePath = path.resolve(ctx.values.template);
+    if (ctx.values.format === 'csv-template' && !ctx.values.output)
+      throw new CliFailure('--format csv-template requires --output.', 2);
+    if (ctx.values.overwrite && !ctx.values.output)
+      throw new CliFailure('--overwrite requires --output.', 2);
     const definition = await inspectTemplate(templatePath);
-    const content =
-      ctx.values.format === 'json'
-        ? `${JSON.stringify(definition, null, 2)}\n`
-        : renderFieldTable(definition);
+    const bytes =
+      ctx.values.format === 'csv-template'
+        ? requireStage(createCsvTemplate(definition))
+        : new TextEncoder().encode(
+            ctx.values.format === 'json'
+              ? JSON.stringify(definition, null, 2) + '\n'
+              : renderFieldTable(definition),
+          );
     if (ctx.values.output) {
-      await writeInspectionOutput(
-        path.resolve(ctx.values.output),
-        templatePath,
-        content,
-        Boolean(ctx.values.overwrite),
+      requireStage(
+        await publishStandaloneFile({
+          outputPath: path.resolve(ctx.values.output),
+          bytes,
+          conflictPolicy: ctx.values.overwrite ? 'overwrite' : 'error',
+          protectedPaths: [templatePath],
+        }),
       );
     } else {
-      process.stdout.write(content);
+      process.stdout.write(new TextDecoder().decode(bytes));
     }
   },
 });
 
 const generate = define({
   name: 'generate',
-  description: 'Generate one DOCX from manually supplied field values.',
+  description: 'Generate DOCX documents from manual values or CSV records.',
   args: {
     template: { type: 'positional', description: 'DOCX template path' },
     set: { type: 'string', multiple: true, description: 'Field value (repeat: --set field=value)' },
-    outputFile: {
+    input: { type: 'string', description: 'CSV input file' },
+    inputEncoding: {
+      type: 'enum',
+      choices: ['utf8', 'gbk'],
+      toKebab: true,
+      description: 'CSV encoding (default: utf8)',
+    },
+    outputFile: { type: 'string', toKebab: true, description: 'Single output DOCX path' },
+    outputDir: {
       type: 'string',
       toKebab: true,
-      required: true,
-      description: 'Output DOCX path',
+      description: 'Directory for individual DOCX files',
     },
-    overwrite: { type: 'boolean', description: 'Replace an existing output file' },
+    pathTemplate: {
+      type: 'string',
+      toKebab: true,
+      description: 'Relative document path for directory output',
+    },
+    overwrite: { type: 'boolean', description: 'Replace existing output files' },
     dryRun: {
       type: 'boolean',
       toKebab: true,
-      description: 'Validate and show the publication action without writing',
+      description: 'Validate and show publication actions without writing',
     },
   },
   async run(ctx) {
     const templatePath = path.resolve(ctx.values.template);
-    const outputPath = path.resolve(ctx.values.outputFile);
+    const inputPath = ctx.values.input ? path.resolve(ctx.values.input) : undefined;
+    const outputFile = ctx.values.outputFile;
+    const outputDir = ctx.values.outputDir;
+    if (Boolean(outputFile) === Boolean(outputDir))
+      throw new CliFailure('Choose exactly one of --output-file or --output-dir.', 2);
+    if (inputPath && (ctx.values.set?.length ?? 0) > 0)
+      throw new CliFailure('--input and --set cannot be combined.', 2);
+    if (ctx.values.inputEncoding && !inputPath)
+      throw new CliFailure('--input-encoding requires --input.', 2);
+    if (ctx.values.pathTemplate && !outputDir)
+      throw new CliFailure('--path-template requires --output-dir.', 2);
+    if (inputPath && path.extname(inputPath).toLocaleLowerCase('en-US') !== '.csv')
+      throw new CliFailure('Only .csv input is supported by this command.', 2);
+
     const source = await readFile(templatePath);
     const prepared = requireStage(prepareTemplate(source));
-    const record = parseSetValues(ctx.values.set ?? []);
+    if (inputPath) requireStage(validateScalarTabularTemplate(prepared.definition));
+    const input = inputPath
+      ? requireStage(
+          parseCsvInput(await readFile(inputPath), {
+            encoding: ctx.values.inputEncoding === 'gbk' ? 'gbk' : 'utf8',
+          }),
+        )
+      : { kind: 'object-rows' as const, rows: [parseSetValues(ctx.values.set ?? [])] };
+
+    const outputPath = outputFile ? path.resolve(outputFile) : undefined;
+    const naming = outputPath
+      ? { kind: 'single' as const, fileName: path.basename(outputPath) }
+      : {
+          kind: 'template' as const,
+          pathTemplate: normalizeDocxPathTemplate(
+            ctx.values.pathTemplate ?? 'document-{$index}.docx',
+          ),
+        };
     const generation = requireStage(
       prepareGeneration({
         template: prepared,
-        input: { kind: 'object-rows', rows: [record] },
-        request: {
-          naming: { kind: 'single', fileName: path.basename(outputPath) },
-          documentOutputs: 'docx',
-        },
+        input,
+        request: { naming, documentOutputs: 'docx' },
       }),
     );
     const publicationPlan = requireStage(
       createPublicationPlan({
         manifest: derivePublicationManifest(generation.plan),
-        rootDirectory: path.dirname(outputPath),
+        rootDirectory: outputPath ? path.dirname(outputPath) : path.resolve(outputDir!),
         conflictPolicy: ctx.values.overwrite ? 'overwrite' : 'error',
-        protectedPaths: [templatePath],
+        protectedPaths: inputPath ? [templatePath, inputPath] : [templatePath],
       }),
     );
     const preflighted = requireStage(await preflightPublication(publicationPlan));
     if (ctx.values.dryRun) {
       for (const item of preflighted.items) {
-        process.stdout.write(`${item.action}\t${item.destinationPath}\n`);
+        process.stdout.write(item.action + '\t' + item.destinationPath + '\n');
       }
       return;
     }
     const generated = requireStage(await generateArtifacts(generation));
     const packaged = requireStage(packageArtifacts(generation.plan, generated));
     const published = requireStage(await publishArtifacts(preflighted, packaged));
-    for (const artifact of published.artifacts) process.stdout.write(`${artifact.path}\n`);
+    for (const artifact of published.artifacts) process.stdout.write(artifact.path + '\n');
   },
 });
+
+function normalizeDocxPathTemplate(value: string): string {
+  const extension = path.posix.extname(value);
+  if (extension.length === 0) return value + '.docx';
+  if (extension.toLocaleLowerCase('en-US') !== '.docx')
+    throw new CliFailure('--path-template must name a .docx file.', 2);
+  return value;
+}
 
 async function inspectTemplate(templatePath: string): Promise<TemplateDefinition> {
   const source = await readFile(templatePath);
@@ -155,61 +217,6 @@ function renderFieldTable(definition: TemplateDefinition): string {
     border: getBorderCharacters('norc'),
     drawHorizontalLine: (index, rowCount) => index === 0 || index === 1 || index === rowCount,
   });
-}
-
-async function writeInspectionOutput(
-  outputPath: string,
-  templatePath: string,
-  content: string,
-  overwrite: boolean,
-): Promise<void> {
-  if (outputPath === templatePath)
-    throw new CliFailure('Output path must differ from the template path.');
-
-  let target: Awaited<ReturnType<typeof lstat>> | undefined;
-  try {
-    target = await lstat(outputPath);
-  } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
-  }
-
-  if (target !== undefined) {
-    if (target.isSymbolicLink() || !target.isFile())
-      throw new CliFailure('Unsafe output target: ' + outputPath + '.');
-    const source = await stat(templatePath);
-    if (source.dev === target.dev && source.ino === target.ino)
-      throw new CliFailure('Output path refers to the template file.');
-    if (!overwrite)
-      throw new CliFailure(
-        'Output already exists: ' + outputPath + '. Use --overwrite to replace it.',
-      );
-  }
-
-  if (!overwrite) {
-    await writeFile(outputPath, content, { flag: 'wx' });
-    return;
-  }
-
-  const temporaryPath = path.join(path.dirname(outputPath), '.templify-inspect-' + randomUUID());
-  let temporaryCreated = false;
-  let renamed = false;
-  try {
-    const handle = await open(temporaryPath, 'wx');
-    temporaryCreated = true;
-    try {
-      await handle.writeFile(content);
-    } finally {
-      await handle.close();
-    }
-    await rename(temporaryPath, outputPath);
-    renamed = true;
-  } finally {
-    if (temporaryCreated && !renamed) {
-      await unlink(temporaryPath).catch((error: unknown) => {
-        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
-      });
-    }
-  }
 }
 
 function requireStage<T, E, W>(result: StageResult<T, E, W>): T {

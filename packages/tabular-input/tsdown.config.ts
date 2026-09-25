@@ -7,11 +7,11 @@ export default defineConfig({
   platform: 'node',
   target: 'node24',
   deps: {
-    alwaysBundle: ['@templify/core', '@templify/node-output', '@templify/tabular-input'],
-    resolveDepSubpath: true,
+    neverBundle: ['@templify/core'],
+    dts: { neverBundle: ['@templify/core'] },
   },
-  outExtensions: () => ({ js: '.js' }),
-  dts: false,
+  outExtensions: () => ({ js: '.js', dts: '.d.ts' }),
+  dts: true,
   sourcemap: true,
   minify: false,
 });

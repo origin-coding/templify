@@ -1,0 +1,31 @@
+{
+  "name": "@templify/tabular-input",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.test.json --pretty false && tsc -p tsconfig.config.json --pretty false"
+  },
+  "dependencies": {
+    "@templify/core": "workspace:*",
+    "csv-parse": "^7.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

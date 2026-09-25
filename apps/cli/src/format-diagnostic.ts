@@ -20,7 +20,57 @@ export function formatDiagnostic(value: unknown): string {
   const code = diagnostic.code;
   if (typeof code !== 'string') return 'An operation failed without a diagnostic code.';
 
+  const location = asRecord(diagnostic.location);
+  const row = typeof location?.sourceRowNumber === 'number' ? location.sourceRowNumber : undefined;
+  const column =
+    typeof location?.sourceColumnNumber === 'number' ? location.sourceColumnNumber : undefined;
+  const position =
+    row === undefined
+      ? ''
+      : ` at CSV row ${row}${column === undefined ? '' : `, column ${column}`}`;
   switch (code) {
+    case 'InvalidCsvEncoding':
+      return withCode(
+        code,
+        diagnostic.encoding === 'utf8'
+          ? 'CSV is not valid UTF-8. If it is encoded as GBK, use --input-encoding gbk.'
+          : 'CSV could not be decoded as GBK.',
+      );
+    case 'InvalidCsv':
+      return withCode(
+        code,
+        `Invalid CSV${typeof diagnostic.sourceRowNumber === 'number' ? ` near row ${diagnostic.sourceRowNumber}` : ''} (${String(diagnostic.reason)}).`,
+      );
+    case 'MissingCsvHeader':
+      return withCode(code, 'CSV is empty or has no header row.');
+    case 'EmptyCsvHeader':
+      return withCode(code, `CSV header column ${String(diagnostic.columnNumber)} is empty.`);
+    case 'UnsupportedTabularTemplate':
+      return withCode(
+        code,
+        `CSV input and templates do not support collection field ${quoted(diagnostic.fieldName)}.`,
+      );
+    case 'NoTemplateFields':
+      return withCode(code, 'The template has no fields to export as CSV headers.');
+    case 'NoMatchingInputFields':
+      return withCode(
+        code,
+        'No CSV headers match template fields. Check that the first row contains headers with the exact field names.',
+      );
+    case 'DuplicateInputField':
+      return withCode(
+        code,
+        `Duplicate CSV header ${quoted(diagnostic.fieldName)} in columns ${Array.isArray(diagnostic.columnNumbers) ? diagnostic.columnNumbers.join(', ') : 'unknown'}.`,
+      );
+    case 'EmptyInputRowsIgnored':
+      return withCode(code, `Ignored ${String(diagnostic.rowCount)} empty input row(s).`);
+    case 'InvalidRecordCount':
+      return withCode(code, 'Single-file output requires exactly one nonempty record.');
+    case 'DuplicateArtifactPath':
+      return withCode(
+        code,
+        `Multiple records resolve to ${quoted(diagnostic.path)}. Include '{$index}' in --path-template to make names unique.`,
+      );
     case 'ExtraInputFieldsIgnored': {
       const names = Array.isArray(diagnostic.fieldNames)
         ? diagnostic.fieldNames.map(quoted).join(', ')
@@ -35,7 +85,7 @@ export function formatDiagnostic(value: unknown): string {
       if (typeof field === 'string')
         return withCode(
           code,
-          `Missing template field ${quoted(field)}. Provide it with --set ${field}=<value>.`,
+          `Missing template field ${quoted(field)}${position}. Add a matching CSV column or provide --set ${field}=<value>.`,
         );
       return withCode(code, 'A template field is missing from the input.');
     }
@@ -46,7 +96,7 @@ export function formatDiagnostic(value: unknown): string {
       const reason = diagnostic.reason;
       return withCode(
         code,
-        `Invalid value${name ? ` for ${quoted(name)}` : ''}: expected ${String(expected)}${reason ? ` (${String(reason)})` : ''}.`,
+        `Invalid value${name ? ` for ${quoted(name)}` : ''}${position}: expected ${String(expected)}${reason ? ` (${String(reason)})` : ''}.`,
       );
     }
     case 'InvalidTemplate':

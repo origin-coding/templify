@@ -172,6 +172,153 @@ try {
     2,
   );
 
+  const csvTemplate = path.join(temp, 'records-template.csv');
+  run(process.execPath, [
+    bin,
+    'inspect',
+    template,
+    '--format',
+    'csv-template',
+    '--output',
+    csvTemplate,
+  ]);
+  assert.deepEqual([...(await readFile(csvTemplate)).subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+  assert.equal(await readFile(csvTemplate, 'utf8'), '\uFEFFname\r\n');
+
+  const csvInput = path.join(temp, 'records.csv');
+  await writeFile(csvInput, '\uFEFFname\r\nAlice\r\nBob\r\n');
+  const outputDir = path.join(temp, 'batch');
+  const dryRun = run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    outputDir,
+    '--dry-run',
+  ]);
+  assert.match(dryRun.stdout, /document-1\.docx/u);
+  assert.match(dryRun.stdout, /document-2\.docx/u);
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    outputDir,
+  ]);
+  assert.deepEqual((await readdir(outputDir)).sort(), ['document-1.docx', 'document-2.docx']);
+  run(
+    process.execPath,
+    [bin, 'generate', template, '--input', csvInput, '--output-dir', outputDir],
+    cliRoot,
+    1,
+  );
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    outputDir,
+    '--overwrite',
+  ]);
+
+  const namedDir = path.join(temp, 'named');
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    namedDir,
+    '--path-template',
+    '{name}',
+  ]);
+  assert.deepEqual((await readdir(namedDir)).sort(), ['Alice.docx', 'Bob.docx']);
+
+  const noHeader = path.join(temp, 'no-header.csv');
+  await writeFile(noHeader, 'Alice\nBob\n');
+  const headerError = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      noHeader,
+      '--output-dir',
+      path.join(temp, 'no-header-out'),
+    ],
+    cliRoot,
+    1,
+  );
+  assert.match(headerError.stderr, /first row contains headers/u);
+
+  const duplicateHeader = path.join(temp, 'duplicate-header.csv');
+  await writeFile(duplicateHeader, 'name,name\nAlice,Bob\n');
+  const duplicateError = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      duplicateHeader,
+      '--output-dir',
+      path.join(temp, 'duplicate-header-out'),
+    ],
+    cliRoot,
+    1,
+  );
+  assert.match(duplicateError.stderr, /Duplicate CSV header "name"/u);
+
+  const collectionTemplate = path.join(temp, 'collection.docx');
+  await writeFile(collectionTemplate, createDocx([['{#items}'], ['{name}'], ['{/items}']]));
+  const collectionError = run(
+    process.execPath,
+    [
+      bin,
+      'inspect',
+      collectionTemplate,
+      '--format',
+      'csv-template',
+      '--output',
+      path.join(temp, 'collection.csv'),
+    ],
+    cliRoot,
+    1,
+  );
+  assert.match(collectionError.stderr, /do not support collection field/u);
+
+  const gbkInput = path.join(temp, 'gbk.csv');
+  await writeFile(
+    gbkInput,
+    Buffer.from([...new TextEncoder().encode('name\n'), 0xd6, 0xd0, 0xce, 0xc4]),
+  );
+  const encodingError = run(
+    process.execPath,
+    [bin, 'generate', template, '--input', gbkInput, '--output-dir', path.join(temp, 'gbk-error')],
+    cliRoot,
+    1,
+  );
+  assert.match(encodingError.stderr, /--input-encoding gbk/u);
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    gbkInput,
+    '--input-encoding',
+    'gbk',
+    '--output-dir',
+    path.join(temp, 'gbk-output'),
+  ]);
+
   process.stdout.write('CLI isolated-install smoke test passed.\n');
 } finally {
   const parent = path.resolve(tmpdir()) + path.sep;

@@ -37,7 +37,14 @@ export function normalizeRecords(
 
   for (const row of prepared.rows) {
     const errorCount = errors.length;
-    const record = normalizeRow(definition, row.value, row.origin, errors, warnings);
+    const record = normalizeRow(
+      definition,
+      row.value,
+      row.origin,
+      errors,
+      warnings,
+      row.columnNumbersByName,
+    );
     if (errors.length === errorCount && record !== undefined) {
       records.push(record);
       origins.push(row.origin);
@@ -70,6 +77,7 @@ type PreparedRowsResult =
 interface PreparedRow {
   readonly value: unknown;
   readonly origin: RecordOrigin;
+  readonly columnNumbersByName?: ReadonlyMap<string, number>;
 }
 
 function prepareRows(definition: TemplateDefinition, input: RawInputBatch): PreparedRowsResult {
@@ -121,6 +129,12 @@ function prepareTabularRows(
       });
     }
   }
+  if (
+    definition.fields.length > 0 &&
+    !definition.fields.some((field) => positionsByName.has(field.name))
+  ) {
+    errors.push({ code: 'NoMatchingInputFields', columnNames: input.columns });
+  }
   for (const field of definition.fields) {
     if (!positionsByName.has(field.name)) {
       errors.push({ code: 'MissingInputField', fieldName: field.name });
@@ -134,6 +148,11 @@ function prepareTabularRows(
     };
   }
 
+  const columnNumbersByName = new Map(
+    [...positionsByName].map(([name, positions]) => [name, positions[0]!]),
+  );
+  const fieldNames = new Set(definition.fields.map((field) => field.name));
+  const extraColumnNames = input.columns.filter((name) => !fieldNames.has(name));
   const rows: PreparedRow[] = [];
   const emptySourceRows: number[] = [];
   let ignoredCount = 0;
@@ -146,9 +165,9 @@ function prepareTabularRows(
     }
     const value: Record<string, unknown> = {};
     input.columns.forEach((column, columnIndex) => {
-      value[column] = cells[columnIndex];
+      if (fieldNames.has(column)) value[column] = cells[columnIndex];
     });
-    rows.push({ value, origin });
+    rows.push({ value, origin, columnNumbersByName });
   }
 
   const firstOrigin = input.origins?.[0];
@@ -163,6 +182,9 @@ function prepareTabularRows(
             ...(firstOrigin?.sheetName === undefined ? {} : { sheetName: firstOrigin.sheetName }),
           },
         ];
+  if (extraColumnNames.length > 0) {
+    warnings.push({ code: 'ExtraInputFieldsIgnored', fieldNames: extraColumnNames });
+  }
   return { ok: true, rows, warnings };
 }
 
@@ -172,6 +194,7 @@ function normalizeRow(
   origin: RecordOrigin,
   errors: InputNormalizationError[],
   warnings: InputNormalizationWarning[],
+  columnNumbersByName?: ReadonlyMap<string, number>,
 ): RecordData | undefined {
   const location = toLocation(origin);
   if (!isPlainRecord(candidate)) {
@@ -193,11 +216,13 @@ function normalizeRow(
     }
     const value = candidate[field.name];
     if (field.kind === 'scalar') {
+      const sourceColumnNumber = columnNumbersByName?.get(field.name);
       const normalized = normalizeScalar(
         field,
         value,
         {
           ...location,
+          ...(sourceColumnNumber === undefined ? {} : { sourceColumnNumber }),
           path: [field.name],
         },
         errors,

@@ -35,6 +35,7 @@ The current shared packages are:
 
 - `@templify/core`: template preparation, input normalization, generation planning, in-memory rendering, PDF derivation boundaries, and artifact packaging.
 - `@templify/node-output`: pure publication planning, read-only filesystem preflight, and confirmed filesystem publication.
+- `@templify/tabular-input`: shared CSV parsing and CSV input-template export.
 
 See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
 
@@ -69,7 +70,7 @@ pnpm build
 
 ## CLI
 
-The CLI currently supports template inspection and one manual record per DOCX output.
+The CLI supports template inspection, manual values, and CSV records for single or directory DOCX output.
 It uses the same core pipeline as future desktop adapters.
 
 For development, run the build watcher in one terminal:
@@ -95,7 +96,19 @@ pnpm --filter @templify/cli build
 node apps/cli/dist/index.js inspect template.docx --format json
 node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx
 node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx --dry-run
+node apps/cli/dist/index.js inspect template.docx --format csv-template --output records.csv
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out --path-template '{name}'
+node apps/cli/dist/index.js generate template.docx --input legacy.csv --input-encoding gbk --output-dir out
 ```
+
+CSV input requires an exact-name header row. UTF-8 with or without a BOM is accepted by
+default; use `--input-encoding gbk` for legacy GBK files. CSV input and template
+export reject DOCX templates with collection fields. Exported CSV templates have one
+header row and a UTF-8 BOM for spreadsheet compatibility. Directory output defaults
+to `document-{$index}.docx` for each nonempty record. CSV and spreadsheet
+applications may convert text such as `001234` when editing; use an XLSX workflow
+when those values must be protected.
 
 Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
 replace existing output; pass `--overwrite` to replace it. Diagnostics go to stderr,

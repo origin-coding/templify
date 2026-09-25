@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { PublicationManifest, PublishableArtifactSet } from '@templify/core';
-import { createPublicationPlan, preflightPublication, publishArtifacts } from '@/index';
+import {
+  createPublicationPlan,
+  preflightPublication,
+  publishArtifacts,
+  publishStandaloneFile,
+} from '@/index';
 
 const roots: string[] = [];
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value);
@@ -107,6 +112,46 @@ describe('node output publication', () => {
       ok: false,
       errors: [{ code: 'OutputSameAsProtectedPath' }],
     });
+  });
+
+  it('publishes a standalone file with conflict and source protection', async () => {
+    const root = await temporaryRoot();
+    const source = path.join(root, 'template.docx');
+    const target = path.join(root, 'records.csv');
+    await writeFile(source, 'template');
+    const first = await publishStandaloneFile({
+      outputPath: target,
+      bytes: bytes('name\\r\\n'),
+      protectedPaths: [source],
+    });
+    expect(first.ok).toBe(true);
+    expect(await readFile(target, 'utf8')).toBe('name\\r\\n');
+    expect(
+      await publishStandaloneFile({ outputPath: target, bytes: bytes('other') }),
+    ).toMatchObject({
+      ok: false,
+      errors: [{ code: 'OutputConflict' }],
+    });
+    expect(
+      await publishStandaloneFile({
+        outputPath: source,
+        bytes: bytes('bad'),
+        conflictPolicy: 'overwrite',
+        protectedPaths: [source],
+      }),
+    ).toMatchObject({
+      ok: false,
+      errors: [{ code: 'OutputSameAsProtectedPath' }],
+    });
+    expect(await readFile(source, 'utf8')).toBe('template');
+    expect(
+      await publishStandaloneFile({
+        outputPath: target,
+        bytes: bytes('other'),
+        conflictPolicy: 'overwrite',
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await readFile(target, 'utf8')).toBe('other');
   });
 
   it('protects a hard link to the source template', async () => {
