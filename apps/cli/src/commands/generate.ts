@@ -23,7 +23,7 @@ import { CliFailure, requireStage } from '../cli-runtime';
 
 export const generate = define({
   name: 'generate',
-  description: 'Generate DOCX documents from manual values, CSV, or XLSX records.',
+  description: 'Generate DOCX or PDF documents from manual values, CSV, or XLSX records.',
   args: {
     template: { type: 'positional', description: 'DOCX template path' },
     set: { type: 'string', multiple: true, description: 'Field value (repeat: --set field=value)' },
@@ -38,13 +38,13 @@ export const generate = define({
     outputFile: {
       type: 'string',
       toKebab: true,
-      description: 'Single output DOCX path',
+      description: 'Single output DOCX or PDF path',
       conflicts: ['outputDir', 'outputZip'],
     },
     outputDir: {
       type: 'string',
       toKebab: true,
-      description: 'Directory for individual DOCX files',
+      description: 'Directory for individual documents',
       conflicts: 'outputZip',
     },
     outputZip: { type: 'string', toKebab: true, description: 'ZIP archive output path' },
@@ -52,6 +52,18 @@ export const generate = define({
       type: 'string',
       toKebab: true,
       description: 'Relative document path for directory or ZIP output',
+    },
+    documentFormat: {
+      type: 'enum',
+      choices: ['docx', 'pdf'],
+      default: 'docx',
+      toKebab: true,
+      description: 'Per-record output format (default: docx)',
+    },
+    mergedPdf: {
+      type: 'string',
+      toKebab: true,
+      description: 'Relative path for an ordered merged PDF in directory or ZIP output',
     },
     overwrite: { type: 'boolean', description: 'Replace existing output files' },
     dryRun: {
@@ -70,8 +82,20 @@ export const generate = define({
       throw new CliFailure('--input-encoding requires --input.', 2);
     if (ctx.values.sheet !== undefined && !inputPath)
       throw new CliFailure('--sheet requires --input.', 2);
-    if (ctx.values.pathTemplate && !outputDir && !outputZip)
+    if (ctx.values.pathTemplate !== undefined && !outputDir && !outputZip)
       throw new CliFailure('--path-template requires --output-dir or --output-zip.', 2);
+    if (ctx.values.mergedPdf !== undefined && !outputDir && !outputZip)
+      throw new CliFailure('--merged-pdf requires --output-dir or --output-zip.', 2);
+    const documentFormat = ctx.values.documentFormat === 'pdf' ? 'pdf' : 'docx';
+    const documentExtension = documentFormat === 'pdf' ? '.pdf' : '.docx';
+    if (outputFile) requireExtension(outputFile, '--output-file', documentExtension);
+    if (outputZip) requireExtension(outputZip, '--output-zip', '.zip');
+    if (ctx.values.mergedPdf !== undefined)
+      requireExtension(ctx.values.mergedPdf, '--merged-pdf', '.pdf');
+    const documentPathTemplate = normalizeDocumentPathTemplate(
+      ctx.values.pathTemplate ?? 'document-{$index}',
+      documentExtension,
+    );
     const detected = inputPath ? detectInputFileFormat(inputPath) : undefined;
     if (detected?.kind === 'unsupported-excel')
       throw new CliFailure(
@@ -116,9 +140,7 @@ export const generate = define({
       ? { kind: 'single' as const, fileName: path.basename(outputFile) }
       : {
           kind: 'template' as const,
-          pathTemplate: normalizeDocxPathTemplate(
-            ctx.values.pathTemplate ?? 'document-{$index}.docx',
-          ),
+          pathTemplate: documentPathTemplate,
         };
     const generation = requireStage(
       prepareGeneration({
@@ -126,7 +148,12 @@ export const generate = define({
         input,
         request: {
           naming,
-          documentOutputs: 'docx',
+          documentOutputs: documentFormat,
+          ...(ctx.values.mergedPdf === undefined
+            ? {}
+            : {
+                aggregates: [{ kind: 'merged-pdf' as const, relativePath: ctx.values.mergedPdf }],
+              }),
           ...(outputZip
             ? { bundle: { kind: 'zip' as const, fileName: path.basename(outputZip) } }
             : {}),
@@ -155,12 +182,17 @@ export const generate = define({
   },
 });
 
-function normalizeDocxPathTemplate(value: string): string {
-  const extension = path.posix.extname(value);
-  if (extension.length === 0) return value + '.docx';
-  if (extension.toLocaleLowerCase('en-US') !== '.docx')
-    throw new CliFailure('--path-template must name a .docx file.', 2);
+function normalizeDocumentPathTemplate(value: string, expectedExtension: '.docx' | '.pdf'): string {
+  const actualExtension = path.posix.extname(value);
+  if (actualExtension.length === 0) return value + expectedExtension;
+  if (actualExtension.toLocaleLowerCase('en-US') !== expectedExtension)
+    throw new CliFailure('--path-template must name a ' + expectedExtension + ' file.', 2);
   return value;
+}
+
+function requireExtension(value: string, option: string, extension: '.docx' | '.pdf' | '.zip') {
+  if (path.extname(value).toLocaleLowerCase('en-US') !== extension)
+    throw new CliFailure(option + ' requires a ' + extension + ' path.', 2);
 }
 
 function parseSetValues(values: readonly string[]): Record<string, string> {

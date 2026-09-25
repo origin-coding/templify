@@ -28,11 +28,22 @@ export const inspect = define({
       !ctx.values.output
     )
       throw new CliFailure('--format ' + ctx.values.format + ' requires --output.', 2);
-    if (
-      ctx.values.format === 'excel-template' &&
-      path.extname(ctx.values.output!).toLocaleLowerCase('en-US') !== '.xlsx'
-    )
-      throw new CliFailure('--format excel-template requires a .xlsx output path.', 2);
+    if (ctx.values.output) {
+      const expectedExtension = {
+        table: undefined,
+        json: '.json',
+        'csv-template': '.csv',
+        'excel-template': '.xlsx',
+      }[ctx.values.format];
+      if (
+        expectedExtension &&
+        path.extname(ctx.values.output).toLocaleLowerCase('en-US') !== expectedExtension
+      )
+        throw new CliFailure(
+          '--format ' + ctx.values.format + ' requires a ' + expectedExtension + ' output path.',
+          2,
+        );
+    }
     if (ctx.values.overwrite && !ctx.values.output)
       throw new CliFailure('--overwrite requires --output.', 2);
     const definition = requireStage(prepareTemplate(await readFile(templatePath))).definition;

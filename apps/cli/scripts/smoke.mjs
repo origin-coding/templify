@@ -12,6 +12,7 @@ const requireCore = createRequire(
   fileURLToPath(new URL('../../../packages/core/package.json', import.meta.url)),
 );
 const PizZip = requireCore('pizzip');
+const { PDFDocument } = requireCore('@cantoo/pdf-lib');
 const temp = await mkdtemp(path.join(tmpdir(), 'templify-cli-smoke-'));
 
 function run(program, args, cwd = cliRoot, expectedStatus = 0) {
@@ -70,6 +71,23 @@ try {
     ['name'],
   );
 
+  for (const [format, name, extension] of [
+    ['json', 'fields.csv', '.json'],
+    ['csv-template', 'records.xlsx', '.csv'],
+    ['excel-template', 'records.csv', '.xlsx'],
+  ]) {
+    const invalidOutput = run(
+      process.execPath,
+      [bin, 'inspect', template, '--format', format, '--output', path.join(temp, name)],
+      cliRoot,
+      2,
+    );
+    assert.ok(invalidOutput.stderr.includes('requires a ' + extension + ' output path'));
+  }
+  const tablePath = path.join(temp, 'fields.report');
+  run(process.execPath, [bin, 'inspect', template, '--format', 'table', '--output', tablePath]);
+  assert.match(await readFile(tablePath, 'utf8'), /name/u);
+
   const inspectionPath = path.join(temp, 'fields.json');
   run(process.execPath, [bin, 'inspect', template, '--format', 'json', '--output', inspectionPath]);
   const inspection = await readFile(inspectionPath, 'utf8');
@@ -93,7 +111,7 @@ try {
   ]);
   assert.equal(await readFile(inspectionPath, 'utf8'), inspection);
 
-  const templateLink = path.join(temp, 'template-link.docx');
+  const templateLink = path.join(temp, 'template-link.json');
   await link(template, templateLink);
   run(
     process.execPath,
@@ -326,6 +344,183 @@ try {
       .sort(),
     ['group/Alice.docx', 'group/Bob.docx'],
   );
+  const singlePdf = path.join(temp, 'single.pdf');
+  const singlePdfDryRun = run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--set',
+    'name=Alice',
+    '--output-file',
+    singlePdf,
+    '--document-format',
+    'pdf',
+    '--dry-run',
+  ]);
+  assert.equal(singlePdfDryRun.stdout, 'create\t' + singlePdf + '\n');
+  await assert.rejects(readFile(singlePdf), { code: 'ENOENT' });
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--set',
+    'name=Alice',
+    '--output-file',
+    singlePdf,
+    '--document-format',
+    'pdf',
+  ]);
+  const singlePdfDocument = await PDFDocument.load(await readFile(singlePdf));
+  assert.ok(singlePdfDocument.getPageCount() > 0);
+
+  const oneRowCsv = path.join(temp, 'one-row.csv');
+  await writeFile(oneRowCsv, 'name\nAlice\n');
+  const oneRowPdf = path.join(temp, 'one-row.pdf');
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    oneRowCsv,
+    '--output-file',
+    oneRowPdf,
+    '--document-format',
+    'pdf',
+  ]);
+  assert.ok((await readFile(oneRowPdf)).subarray(0, 5).equals(Buffer.from('%PDF-')));
+
+  const pdfDir = path.join(temp, 'pdf-batch');
+  const pdfDryRun = run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    pdfDir,
+    '--document-format',
+    'pdf',
+    '--merged-pdf',
+    'all.pdf',
+    '--dry-run',
+  ]);
+  assert.match(pdfDryRun.stdout, /document-1\.pdf/u);
+  assert.match(pdfDryRun.stdout, /document-2\.pdf/u);
+  assert.match(pdfDryRun.stdout, /all\.pdf/u);
+  await assert.rejects(readdir(pdfDir), { code: 'ENOENT' });
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-dir',
+    pdfDir,
+    '--document-format',
+    'pdf',
+    '--path-template',
+    'group/{name}',
+    '--merged-pdf',
+    'all.pdf',
+  ]);
+  assert.deepEqual((await readdir(pdfDir)).sort(), ['all.pdf', 'group']);
+  assert.deepEqual((await readdir(path.join(pdfDir, 'group'))).sort(), ['Alice.pdf', 'Bob.pdf']);
+  const alicePdf = await PDFDocument.load(await readFile(path.join(pdfDir, 'group', 'Alice.pdf')));
+  const bobPdf = await PDFDocument.load(await readFile(path.join(pdfDir, 'group', 'Bob.pdf')));
+  const mergedPdf = await PDFDocument.load(await readFile(path.join(pdfDir, 'all.pdf')));
+  assert.equal(mergedPdf.getPageCount(), alicePdf.getPageCount() + bobPdf.getPageCount());
+
+  const pdfMergedArchive = path.join(temp, 'pdf-and-merged.zip');
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-zip',
+    pdfMergedArchive,
+    '--document-format',
+    'pdf',
+    '--merged-pdf',
+    'all.pdf',
+  ]);
+  const pdfMergedZip = new PizZip(await readFile(pdfMergedArchive));
+  assert.deepEqual(
+    Object.values(pdfMergedZip.files)
+      .filter((archiveEntry) => !archiveEntry.dir)
+      .map((archiveEntry) => archiveEntry.name)
+      .sort(),
+    ['all.pdf', 'document-1.pdf', 'document-2.pdf'],
+  );
+  const mergedArchivePdf = await PDFDocument.load(pdfMergedZip.file('all.pdf').asUint8Array());
+  assert.equal(mergedArchivePdf.getPageCount(), alicePdf.getPageCount() + bobPdf.getPageCount());
+
+  const docxMergedArchive = path.join(temp, 'docx-and-merged.zip');
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-zip',
+    docxMergedArchive,
+    '--merged-pdf',
+    'all.pdf',
+  ]);
+  const docxMergedZip = new PizZip(await readFile(docxMergedArchive));
+  assert.deepEqual(
+    Object.values(docxMergedZip.files)
+      .filter((archiveEntry) => !archiveEntry.dir)
+      .map((archiveEntry) => archiveEntry.name)
+      .sort(),
+    ['all.pdf', 'document-1.docx', 'document-2.docx'],
+  );
+  const aggregateOnlyPdf = await PDFDocument.load(docxMergedZip.file('all.pdf').asUint8Array());
+  assert.equal(aggregateOnlyPdf.getPageCount(), alicePdf.getPageCount() + bobPdf.getPageCount());
+
+  const invalidPdfOptions = [
+    {
+      args: ['--output-file', path.join(temp, 'wrong.pdf')],
+      message: '--output-file requires a .docx path.',
+    },
+    {
+      args: ['--output-file', path.join(temp, 'wrong.docx'), '--document-format', 'pdf'],
+      message: '--output-file requires a .pdf path.',
+    },
+    {
+      args: [
+        '--output-dir',
+        path.join(temp, 'wrong-template'),
+        '--document-format',
+        'pdf',
+        '--path-template',
+        'item.docx',
+      ],
+      message: '--path-template must name a .pdf file.',
+    },
+    {
+      args: ['--output-dir', path.join(temp, 'wrong-docx-template'), '--path-template', 'item.pdf'],
+      message: '--path-template must name a .docx file.',
+    },
+    {
+      args: ['--output-dir', path.join(temp, 'wrong-merge'), '--merged-pdf', 'all.docx'],
+      message: '--merged-pdf requires a .pdf path.',
+    },
+    {
+      args: ['--output-file', path.join(temp, 'single-again.docx'), '--merged-pdf', 'all.pdf'],
+      message: '--merged-pdf requires --output-dir or --output-zip.',
+    },
+  ];
+  for (const { args, message } of invalidPdfOptions) {
+    const invalid = run(
+      process.execPath,
+      [bin, 'generate', template, '--set', 'name=Alice', ...args],
+      cliRoot,
+      2,
+    );
+    assert.ok(invalid.stderr.includes(message));
+  }
+
   const conflictingTargets = run(
     process.execPath,
     [
@@ -392,9 +587,9 @@ try {
       path.join(temp, 'not-zip.docx'),
     ],
     cliRoot,
-    1,
+    2,
   );
-  assert.match(invalidArchiveName.stderr, /UnsupportedExtension/u);
+  assert.ok(invalidArchiveName.stderr.includes('--output-zip requires a .zip path.'));
 
   const noHeader = path.join(temp, 'no-header.csv');
   await writeFile(noHeader, 'Alice\nBob\n');

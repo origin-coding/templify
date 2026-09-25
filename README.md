@@ -105,19 +105,37 @@ node apps/cli/dist/index.js generate template.docx --input records.csv --output-
 node apps/cli/dist/index.js inspect template.docx --format excel-template --output records.xlsx
 node apps/cli/dist/index.js generate template.docx --input records.xlsx --output-dir out
 node apps/cli/dist/index.js generate template.docx --input records.xlsx --sheet Records --output-zip documents.zip
+node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.pdf --document-format pdf
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out --document-format pdf --merged-pdf all.pdf
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip --merged-pdf all.pdf
 ```
 
 CSV input requires an exact-name header row. UTF-8 with or without a BOM is accepted by
 default; use `--input-encoding gbk` for legacy GBK files. CSV input and template
 export reject DOCX templates with collection fields. Exported CSV templates have one
 header row and a UTF-8 BOM for spreadsheet compatibility. Directory and ZIP output
-default to `document-{$index}.docx` for each nonempty record. CSV and spreadsheet
-applications may convert text such as `001234` when editing; use an XLSX workflow
+default to `document-{$index}.docx` for DOCX or `document-{$index}.pdf` for PDF.
+Each nonempty record produces one document. CSV and spreadsheet applications may convert text such as `001234` when editing; use an XLSX workflow
 when those values must be protected.
 
 Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
 replace existing output; pass `--overwrite` to replace it. Diagnostics go to stderr,
 while command results go to stdout.
+
+`--document-format` selects `docx` (the default) or `pdf` for each record. A
+`--merged-pdf` path is available only with `--output-dir` or `--output-zip`. With
+DOCX output, the per-record PDFs used for merging stay in memory; only DOCX
+files and the aggregate PDF are published. With PDF output, both the
+per-record PDFs and aggregate PDF are published. Conversion can change fonts,
+layout, or pagination relative to the DOCX template; conversion losses are
+reported on stderr.
+
+`inspect --format json`, `csv-template`, and `excel-template` require `.json`,
+`.csv`, and `.xlsx` output paths respectively. Table output has no required
+suffix. `--output-file` requires `.docx` or `.pdf` according to the selected
+document format, `--output-zip` requires `.zip`, and `--merged-pdf` requires a
+relative `.pdf` path. A `--path-template` without an extension gets the selected
+document extension; a mismatched extension is an error.
 
 Check the packed executable from an isolated installation with:
 
