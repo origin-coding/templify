@@ -9,15 +9,21 @@ export function quoted(value: unknown): string {
 }
 
 export function withCode(code: string, message: string): string {
-  return `${message} [${code}]`;
+  return message + ' [' + code + ']';
 }
 
-export function csvPosition(diagnostic: Diagnostic): string {
+export function inputPosition(diagnostic: Diagnostic): string {
   const location = asRecord(diagnostic.location);
   const row = typeof location?.sourceRowNumber === 'number' ? location.sourceRowNumber : undefined;
   const column =
     typeof location?.sourceColumnNumber === 'number' ? location.sourceColumnNumber : undefined;
-  return row === undefined
-    ? ''
-    : ` at CSV row ${row}${column === undefined ? '' : `, column ${column}`}`;
+  if (row === undefined) return '';
+  const sheet = typeof location?.sheetName === 'string' ? location.sheetName : undefined;
+  return sheet === undefined
+    ? ' at CSV row ' + row + (column === undefined ? '' : ', column ' + column)
+    : ' at XLSX worksheet ' +
+        quoted(sheet) +
+        ' row ' +
+        row +
+        (column === undefined ? '' : ', column ' + column);
 }

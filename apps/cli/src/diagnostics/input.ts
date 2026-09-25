@@ -1,4 +1,4 @@
-import { asRecord, csvPosition, quoted, withCode, type Diagnostic } from './shared';
+import { asRecord, inputPosition, quoted, withCode, type Diagnostic } from './shared';
 
 export function formatInputDiagnostic(diagnostic: Diagnostic, code: string): string | undefined {
   switch (code) {
@@ -12,19 +12,156 @@ export function formatInputDiagnostic(diagnostic: Diagnostic, code: string): str
     case 'InvalidCsv':
       return withCode(
         code,
-        `Invalid CSV${typeof diagnostic.sourceRowNumber === 'number' ? ` near row ${diagnostic.sourceRowNumber}` : ''} (${String(diagnostic.reason)}).`,
+        'Invalid CSV' +
+          (typeof diagnostic.sourceRowNumber === 'number'
+            ? ' near row ' + diagnostic.sourceRowNumber
+            : '') +
+          ' (' +
+          String(diagnostic.reason) +
+          ').',
       );
     case 'MissingCsvHeader':
       return withCode(code, 'CSV is empty or has no header row.');
     case 'EmptyCsvHeader':
-      return withCode(code, `CSV header column ${String(diagnostic.columnNumber)} is empty.`);
+      return withCode(code, 'CSV header column ' + String(diagnostic.columnNumber) + ' is empty.');
+    case 'InvalidXlsx':
+      return withCode(code, 'Invalid XLSX workbook: ' + String(diagnostic.reason) + '.');
+    case 'XlsxTemplateFailed':
+      return withCode(code, 'Could not create XLSX template: ' + String(diagnostic.reason) + '.');
+    case 'MissingXlsxSheet':
+      return withCode(
+        code,
+        'Required XLSX worksheet ' + quoted(diagnostic.sheetName) + ' was not found.',
+      );
+    case 'MissingXlsxHeader':
+      return withCode(
+        code,
+        'XLSX worksheet ' + quoted(diagnostic.sheetName) + ' has no header row.',
+      );
+    case 'InvalidXlsxHeader':
+      return withCode(
+        code,
+        'XLSX worksheet ' +
+          quoted(diagnostic.sheetName) +
+          ' has an empty or non-text header in column ' +
+          String(diagnostic.columnNumber) +
+          '.',
+      );
+    case 'DuplicateXlsxHeader':
+      return withCode(
+        code,
+        'Duplicate XLSX header ' +
+          quoted(diagnostic.fieldName) +
+          ' in worksheet ' +
+          quoted(diagnostic.sheetName) +
+          '.',
+      );
+    case 'MissingXlsxField':
+      return withCode(
+        code,
+        'Missing XLSX column ' +
+          quoted(diagnostic.fieldName) +
+          ' in worksheet ' +
+          quoted(diagnostic.sheetName) +
+          '.',
+      );
+    case 'InvalidXlsxCell':
+      return withCode(
+        code,
+        'Invalid XLSX cell at ' +
+          quoted(diagnostic.sheetName) +
+          ' row ' +
+          String(diagnostic.rowNumber) +
+          ', column ' +
+          String(diagnostic.columnNumber) +
+          ' (' +
+          String(diagnostic.reason) +
+          '). Recalculate and save the workbook if this is a formula.',
+      );
+    case 'InvalidXlsxRecordId':
+      return withCode(
+        code,
+        'A direct text record ID is required at ' +
+          quoted(diagnostic.sheetName) +
+          ' row ' +
+          String(diagnostic.rowNumber) +
+          ', column ' +
+          String(diagnostic.columnNumber) +
+          '.',
+      );
+    case 'DuplicateXlsxRecordId':
+      return withCode(
+        code,
+        'Duplicate record ID ' +
+          quoted(diagnostic.recordId) +
+          ' at ' +
+          quoted(diagnostic.sheetName) +
+          ' row ' +
+          String(diagnostic.rowNumber) +
+          '.',
+      );
+    case 'UnknownXlsxParentId':
+      return withCode(
+        code,
+        'Parent ID ' +
+          quoted(diagnostic.parentId) +
+          ' at ' +
+          quoted(diagnostic.sheetName) +
+          ' row ' +
+          String(diagnostic.rowNumber) +
+          ' does not match a root record.',
+      );
+    case 'XlsxRootCollectionCollision':
+      return withCode(
+        code,
+        'The root worksheet ' +
+          quoted(diagnostic.sheetName) +
+          ' is also a collection name. Select another root worksheet with --sheet.',
+      );
+    case 'InvalidXlsxSheetName':
+      return withCode(
+        code,
+        'Collection ' +
+          quoted(diagnostic.fieldName) +
+          ' cannot be used as an Excel worksheet name.',
+      );
+    case 'DuplicateXlsxSheetName':
+      return withCode(
+        code,
+        'Collection names ' + String(diagnostic.fieldNames) + ' collide as Excel worksheet names.',
+      );
+    case 'ReservedXlsxFieldName':
+      return withCode(
+        code,
+        'Field ' +
+          quoted(diagnostic.fieldName) +
+          ' in ' +
+          quoted(diagnostic.scope) +
+          ' conflicts with an XLSX relationship column.',
+      );
+    case 'ExtraXlsxSheetsIgnored':
+      return withCode(
+        code,
+        'Ignored extra XLSX worksheet(s): ' + String(diagnostic.sheetNames) + '.',
+      );
+    case 'ExtraXlsxColumnsIgnored':
+      return withCode(
+        code,
+        'Ignored extra XLSX column(s) in ' +
+          quoted(diagnostic.sheetName) +
+          ': ' +
+          String(diagnostic.fieldNames) +
+          '.',
+      );
     case 'UnsupportedTabularTemplate':
       return withCode(
         code,
-        `CSV input and templates do not support collection field ${quoted(diagnostic.fieldName)}.`,
+        'CSV input and templates do not support collection field ' +
+          quoted(diagnostic.fieldName) +
+          '.',
       );
     case 'NoTemplateFields':
-      return withCode(code, 'The template has no fields to export as CSV headers.');
+      return withCode(code, 'The template has no fields to export.');
     case 'NoMatchingInputFields':
       return withCode(
         code,
@@ -33,17 +170,23 @@ export function formatInputDiagnostic(diagnostic: Diagnostic, code: string): str
     case 'DuplicateInputField':
       return withCode(
         code,
-        `Duplicate CSV header ${quoted(diagnostic.fieldName)} in columns ${Array.isArray(diagnostic.columnNumbers) ? diagnostic.columnNumbers.join(', ') : 'unknown'}.`,
+        'Duplicate CSV header ' +
+          quoted(diagnostic.fieldName) +
+          ' in columns ' +
+          (Array.isArray(diagnostic.columnNumbers)
+            ? diagnostic.columnNumbers.join(', ')
+            : 'unknown') +
+          '.',
       );
     case 'EmptyInputRowsIgnored':
-      return withCode(code, `Ignored ${String(diagnostic.rowCount)} empty input row(s).`);
+      return withCode(code, 'Ignored ' + String(diagnostic.rowCount) + ' empty input row(s).');
     case 'ExtraInputFieldsIgnored': {
       const names = Array.isArray(diagnostic.fieldNames)
         ? diagnostic.fieldNames.map(quoted).join(', ')
         : 'unknown';
       return withCode(
         code,
-        `Ignored input field(s) ${names}. Check their spelling against the template fields.`,
+        'Ignored input field(s) ' + names + '. Check their spelling against the template fields.',
       );
     }
     case 'MissingInputField': {
@@ -51,7 +194,12 @@ export function formatInputDiagnostic(diagnostic: Diagnostic, code: string): str
       return typeof field === 'string'
         ? withCode(
             code,
-            `Missing template field ${quoted(field)}${csvPosition(diagnostic)}. Add a matching CSV column or provide --set ${field}=<value>.`,
+            'Missing template field ' +
+              quoted(field) +
+              inputPosition(diagnostic) +
+              '. Add a matching input column or provide --set ' +
+              field +
+              '=<value>.',
           )
         : withCode(code, 'A template field is missing from the input.');
     }
@@ -61,7 +209,13 @@ export function formatInputDiagnostic(diagnostic: Diagnostic, code: string): str
       const reason = diagnostic.reason;
       return withCode(
         code,
-        `Invalid value${name ? ` for ${quoted(name)}` : ''}${csvPosition(diagnostic)}: expected ${String(diagnostic.expected)}${reason ? ` (${String(reason)})` : ''}.`,
+        'Invalid value' +
+          (name ? ' for ' + quoted(name) : '') +
+          inputPosition(diagnostic) +
+          ': expected ' +
+          String(diagnostic.expected) +
+          (reason ? ' (' + String(reason) + ')' : '') +
+          '.',
       );
     }
     case 'NoInputRecords':

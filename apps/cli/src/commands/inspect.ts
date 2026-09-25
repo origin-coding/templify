@@ -4,7 +4,7 @@ import { define } from 'gunshi';
 import { getBorderCharacters, table } from 'table';
 import { prepareTemplate, type TemplateDefinition } from '@templify/core';
 import { publishStandaloneFile } from '@templify/node-output';
-import { createCsvTemplate } from '@templify/tabular-input';
+import { createCsvTemplate, createXlsxTemplate } from '@templify/tabular-input';
 import { CliFailure, requireStage } from '../cli-runtime';
 
 export const inspect = define({
@@ -14,7 +14,7 @@ export const inspect = define({
     template: { type: 'positional', description: 'DOCX template path' },
     format: {
       type: 'enum',
-      choices: ['table', 'json', 'csv-template'],
+      choices: ['table', 'json', 'csv-template', 'excel-template'],
       default: 'table',
       description: 'Output format',
     },
@@ -23,19 +23,29 @@ export const inspect = define({
   },
   async run(ctx) {
     const templatePath = path.resolve(ctx.values.template);
-    if (ctx.values.format === 'csv-template' && !ctx.values.output)
-      throw new CliFailure('--format csv-template requires --output.', 2);
+    if (
+      (ctx.values.format === 'csv-template' || ctx.values.format === 'excel-template') &&
+      !ctx.values.output
+    )
+      throw new CliFailure('--format ' + ctx.values.format + ' requires --output.', 2);
+    if (
+      ctx.values.format === 'excel-template' &&
+      path.extname(ctx.values.output!).toLocaleLowerCase('en-US') !== '.xlsx'
+    )
+      throw new CliFailure('--format excel-template requires a .xlsx output path.', 2);
     if (ctx.values.overwrite && !ctx.values.output)
       throw new CliFailure('--overwrite requires --output.', 2);
     const definition = requireStage(prepareTemplate(await readFile(templatePath))).definition;
     const bytes =
       ctx.values.format === 'csv-template'
         ? requireStage(createCsvTemplate(definition))
-        : new TextEncoder().encode(
-            ctx.values.format === 'json'
-              ? JSON.stringify(definition, null, 2) + '\n'
-              : renderFieldTable(definition),
-          );
+        : ctx.values.format === 'excel-template'
+          ? requireStage(await createXlsxTemplate(definition))
+          : new TextEncoder().encode(
+              ctx.values.format === 'json'
+                ? JSON.stringify(definition, null, 2) + '\n'
+                : renderFieldTable(definition),
+            );
     if (ctx.values.output) {
       requireStage(
         await publishStandaloneFile({

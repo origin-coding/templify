@@ -35,7 +35,7 @@ The current shared packages are:
 
 - `@templify/core`: template preparation, input normalization, generation planning, in-memory rendering, PDF derivation boundaries, and artifact packaging.
 - `@templify/node-output`: pure publication planning, read-only filesystem preflight, and confirmed filesystem publication.
-- `@templify/tabular-input`: shared CSV parsing and CSV input-template export.
+- `@templify/tabular-input`: shared CSV/XLSX parsing and input-template export.
 
 See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
 
@@ -70,7 +70,7 @@ pnpm build
 
 ## CLI
 
-The CLI supports template inspection, manual values, and CSV records for single or directory DOCX output.
+The CLI supports template inspection, manual values, CSV/XLSX records, and single, directory, or ZIP DOCX output.
 It uses the same core pipeline as future desktop adapters.
 
 For development, run the build watcher in one terminal:
@@ -102,6 +102,9 @@ node apps/cli/dist/index.js generate template.docx --input records.csv --output-
 node apps/cli/dist/index.js generate template.docx --input legacy.csv --input-encoding gbk --output-dir out
 node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip
 node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip --path-template '{name}'
+node apps/cli/dist/index.js inspect template.docx --format excel-template --output records.xlsx
+node apps/cli/dist/index.js generate template.docx --input records.xlsx --output-dir out
+node apps/cli/dist/index.js generate template.docx --input records.xlsx --sheet Records --output-zip documents.zip
 ```
 
 CSV input requires an exact-name header row. UTF-8 with or without a BOM is accepted by
@@ -121,6 +124,37 @@ Check the packed executable from an isolated installation with:
 ```shell
 pnpm --filter @templify/cli smoke
 ```
+
+## XLSX input workbooks
+
+For scalar-only templates, the first visible worksheet is read by default. Use `--sheet <name>`
+to select a different root worksheet. The first row contains exact template field names;
+each nonempty later row produces one document. The same rule selects the root worksheet
+when the DOCX template contains collections.
+
+For each top-level DOCX loop, use a worksheet whose name exactly matches the loop name.
+For example, `{#lineItems}...{/lineItems}` reads the `lineItems` worksheet. Multiple
+collections use separate worksheets. A workbook with collections has these columns:
+
+| Worksheet                 | Required columns                                                |
+| ------------------------- | --------------------------------------------------------------- |
+| Root worksheet            | `__templify_id`, then root scalar field names                   |
+| Each collection worksheet | `__templify_parent_id`, then that collection's item field names |
+
+The two relationship columns contain direct text IDs. Give each root row a unique ID
+such as `r1` or `r2`; each collection item refers to its root row with that ID.
+IDs stay attached when rows are sorted. Blank and duplicate root IDs, unmatched
+parent IDs, missing collection worksheets, and missing headers are errors. A collection
+worksheet with headers and no data rows produces an empty collection. For collection workbooks, extra worksheets and columns are ignored with warnings. The exported XLSX template sets ID and string
+columns to text format, but users can also prepare a workbook manually.
+
+A formula cell uses the calculated result saved in the XLSX file. Templify does not
+calculate formulas; missing or error results fail with the worksheet and cell position.
+Recalculate and save the workbook in Excel before importing when needed. Relationship
+IDs must be direct text, not formulas. Only `.xlsx` is accepted as Excel input; convert
+`.xls`, `.xlsm`, `.xlsb`, and Excel template formats first. Collection names must be
+valid Excel worksheet names. The reserved relationship column names cannot also be
+template fields in the corresponding scope.
 
 ## Contributing
 
