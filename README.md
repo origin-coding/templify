@@ -100,13 +100,15 @@ node apps/cli/dist/index.js inspect template.docx --format csv-template --output
 node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out
 node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out --path-template '{name}'
 node apps/cli/dist/index.js generate template.docx --input legacy.csv --input-encoding gbk --output-dir out
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip
+node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip --path-template '{name}'
 ```
 
 CSV input requires an exact-name header row. UTF-8 with or without a BOM is accepted by
 default; use `--input-encoding gbk` for legacy GBK files. CSV input and template
 export reject DOCX templates with collection fields. Exported CSV templates have one
-header row and a UTF-8 BOM for spreadsheet compatibility. Directory output defaults
-to `document-{$index}.docx` for each nonempty record. CSV and spreadsheet
+header row and a UTF-8 BOM for spreadsheet compatibility. Directory and ZIP output
+default to `document-{$index}.docx` for each nonempty record. CSV and spreadsheet
 applications may convert text such as `001234` when editing; use an XLSX workflow
 when those values must be protected.
 

@@ -2,11 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, mkdtemp, mkdir, rm, writeFile, link } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createDocx } from '../../../packages/core/tests/docx-fixture.ts';
 
 const cliRoot = fileURLToPath(new URL('..', import.meta.url));
+const requireCore = createRequire(
+  fileURLToPath(new URL('../../../packages/core/package.json', import.meta.url)),
+);
+const PizZip = requireCore('pizzip');
 const temp = await mkdtemp(path.join(tmpdir(), 'templify-cli-smoke-'));
 
 function run(program, args, cwd = cliRoot, expectedStatus = 0) {
@@ -240,6 +245,156 @@ try {
     '{name}',
   ]);
   assert.deepEqual((await readdir(namedDir)).sort(), ['Alice.docx', 'Bob.docx']);
+
+  const archive = path.join(temp, 'batch.zip');
+  const archiveDryRun = run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-zip',
+    archive,
+    '--dry-run',
+  ]);
+  assert.equal(archiveDryRun.stdout, `create\t${archive}\n`);
+  await assert.rejects(readFile(archive), { code: 'ENOENT' });
+  assert.equal(
+    run(process.execPath, [bin, 'generate', template, '--input', csvInput, '--output-zip', archive])
+      .stdout,
+    `${archive}\n`,
+  );
+  const zip = new PizZip(await readFile(archive));
+  assert.deepEqual(Object.keys(zip.files).sort(), ['document-1.docx', 'document-2.docx']);
+  assert.match(
+    new PizZip(zip.file('document-1.docx').asUint8Array()).file('word/document.xml').asText(),
+    /Hello Alice!/u,
+  );
+  assert.match(
+    new PizZip(zip.file('document-2.docx').asUint8Array()).file('word/document.xml').asText(),
+    /Hello Bob!/u,
+  );
+  const archiveConflict = run(
+    process.execPath,
+    [bin, 'generate', template, '--input', csvInput, '--output-zip', archive],
+    cliRoot,
+    1,
+  );
+  assert.match(archiveConflict.stderr, /Output already exists/u);
+  assert.equal(
+    run(process.execPath, [
+      bin,
+      'generate',
+      template,
+      '--input',
+      csvInput,
+      '--output-zip',
+      archive,
+      '--overwrite',
+      '--dry-run',
+    ]).stdout,
+    `replace\t${archive}\n`,
+  );
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-zip',
+    archive,
+    '--overwrite',
+  ]);
+
+  const namedArchive = path.join(temp, 'named.zip');
+  run(process.execPath, [
+    bin,
+    'generate',
+    template,
+    '--input',
+    csvInput,
+    '--output-zip',
+    namedArchive,
+    '--path-template',
+    'group/{name}',
+  ]);
+  const namedZip = new PizZip(await readFile(namedArchive));
+  assert.deepEqual(
+    Object.values(namedZip.files)
+      .filter((archiveEntry) => !archiveEntry.dir)
+      .map((archiveEntry) => archiveEntry.name)
+      .sort(),
+    ['group/Alice.docx', 'group/Bob.docx'],
+  );
+  const conflictingTargets = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      csvInput,
+      '--output-dir',
+      outputDir,
+      '--output-zip',
+      archive,
+    ],
+    cliRoot,
+    2,
+  );
+  assert.match(conflictingTargets.stderr, /--output-dir' conflicts with '--output-zip/u);
+  const otherOutputPairs = [
+    ['--output-file', path.join(temp, 'single.docx'), '--output-dir', outputDir],
+    ['--output-file', path.join(temp, 'single.docx'), '--output-zip', archive],
+  ];
+  for (const options of otherOutputPairs) {
+    const outputPairConflict = run(
+      process.execPath,
+      [bin, 'generate', template, ...options],
+      cliRoot,
+      2,
+    );
+    assert.match(outputPairConflict.stderr, /conflicts with/u);
+  }
+  const conflictingInputs = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      csvInput,
+      '--set',
+      'name=Alice',
+      '--output-zip',
+      archive,
+    ],
+    cliRoot,
+    2,
+  );
+  assert.match(conflictingInputs.stderr, /--input' conflicts with '--set/u);
+  const missingOutput = run(
+    process.execPath,
+    [bin, 'generate', template, '--set', 'name=Alice'],
+    cliRoot,
+    2,
+  );
+  assert.match(missingOutput.stderr, /Choose one of --output-file, --output-dir, or --output-zip/u);
+  const invalidArchiveName = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      csvInput,
+      '--output-zip',
+      path.join(temp, 'not-zip.docx'),
+    ],
+    cliRoot,
+    1,
+  );
+  assert.match(invalidArchiveName.stderr, /UnsupportedExtension/u);
 
   const noHeader = path.join(temp, 'no-header.csv');
   await writeFile(noHeader, 'Alice\nBob\n');
