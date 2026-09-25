@@ -9,4 +9,5 @@ export interface RecordOrigin {
 export interface InputRowOrigin {
   readonly sourceRowNumber?: number;
   readonly sheetName?: string;
+  readonly sourceColumnNumbers?: Readonly<Record<string, number>>;
 }

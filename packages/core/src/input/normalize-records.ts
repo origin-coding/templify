@@ -44,6 +44,7 @@ export function normalizeRecords(
       errors,
       warnings,
       row.columnNumbersByName,
+      row.collectionOrigins,
     );
     if (errors.length === errorCount && record !== undefined) {
       records.push(record);
@@ -78,6 +79,7 @@ interface PreparedRow {
   readonly value: unknown;
   readonly origin: RecordOrigin;
   readonly columnNumbersByName?: ReadonlyMap<string, number>;
+  readonly collectionOrigins?: Readonly<Record<string, readonly InputRowOrigin[]>>;
 }
 
 function prepareRows(definition: TemplateDefinition, input: RawInputBatch): PreparedRowsResult {
@@ -106,6 +108,17 @@ function prepareTabularRows(
   input: TabularInput,
 ): PreparedRowsResult {
   if (input.origins !== undefined && input.origins.length !== input.rows.length) {
+    return {
+      ok: false,
+      errors: [{ code: 'InvalidInputShape', reason: 'InvalidOriginCount' }],
+      warnings: [],
+    };
+  }
+
+  if (
+    input.collectionOrigins !== undefined &&
+    input.collectionOrigins.length !== input.rows.length
+  ) {
     return {
       ok: false,
       errors: [{ code: 'InvalidInputShape', reason: 'InvalidOriginCount' }],
@@ -167,7 +180,14 @@ function prepareTabularRows(
     input.columns.forEach((column, columnIndex) => {
       if (fieldNames.has(column)) value[column] = cells[columnIndex];
     });
-    rows.push({ value, origin, columnNumbersByName });
+    rows.push({
+      value,
+      origin,
+      columnNumbersByName,
+      ...(input.collectionOrigins?.[inputRowIndex] === undefined
+        ? {}
+        : { collectionOrigins: input.collectionOrigins[inputRowIndex] }),
+    });
   }
 
   const firstOrigin = input.origins?.[0];
@@ -195,6 +215,7 @@ function normalizeRow(
   errors: InputNormalizationError[],
   warnings: InputNormalizationWarning[],
   columnNumbersByName?: ReadonlyMap<string, number>,
+  collectionOrigins?: Readonly<Record<string, readonly InputRowOrigin[]>>,
 ): RecordData | undefined {
   const location = toLocation(origin);
   if (!isPlainRecord(candidate)) {
@@ -229,7 +250,13 @@ function normalizeRow(
       );
       if (normalized.accepted) record[field.name] = normalized.value;
     } else {
-      const normalized = normalizeCollection(field, value, origin, errors);
+      const normalized = normalizeCollection(
+        field,
+        value,
+        origin,
+        errors,
+        collectionOrigins?.[field.name],
+      );
       if (normalized !== undefined) record[field.name] = normalized;
     }
   }
@@ -241,6 +268,7 @@ function normalizeCollection(
   value: unknown,
   origin: RecordOrigin,
   errors: InputNormalizationError[],
+  itemOrigins?: readonly InputRowOrigin[],
 ): CollectionData | undefined {
   const rootLocation: InputDiagnosticLocation = { ...toLocation(origin), path: [field.name] };
   if (!Array.isArray(value)) {
@@ -253,10 +281,24 @@ function normalizeCollection(
     return undefined;
   }
 
+  if (itemOrigins !== undefined && itemOrigins.length !== value.length) {
+    errors.push({
+      code: 'InvalidInputShape',
+      reason: 'InvalidOriginCount',
+      location: rootLocation,
+    });
+    return undefined;
+  }
+
   const items: CollectionItemData[] = [];
   for (const [itemIndex, candidate] of value.entries()) {
+    const itemOrigin = itemOrigins?.[itemIndex];
     const itemLocation: InputDiagnosticLocation = {
       ...toLocation(origin),
+      ...(itemOrigin?.sourceRowNumber === undefined
+        ? {}
+        : { sourceRowNumber: itemOrigin.sourceRowNumber }),
+      ...(itemOrigin?.sheetName === undefined ? {} : { sheetName: itemOrigin.sheetName }),
       path: [field.name, itemIndex],
     };
     if (!isPlainRecord(candidate)) {
@@ -274,7 +316,7 @@ function normalizeCollection(
         errors.push({
           code: 'MissingInputField',
           fieldName: child.name,
-          location: { ...toLocation(origin), path: [field.name, itemIndex, child.name] },
+          location: { ...itemLocation, path: [field.name, itemIndex, child.name] },
         });
         continue;
       }
@@ -284,14 +326,20 @@ function normalizeCollection(
           code: 'InvalidCollectionItem',
           reason: 'NestedCollection',
           receivedType: inputValueType(childValue),
-          location: { ...toLocation(origin), path: [field.name, itemIndex, child.name] },
+          location: { ...itemLocation, path: [field.name, itemIndex, child.name] },
         });
         continue;
       }
       const normalized = normalizeScalar(
         child,
         childValue,
-        { ...toLocation(origin), path: [field.name, itemIndex, child.name] },
+        {
+          ...itemLocation,
+          ...(itemOrigin?.sourceColumnNumbers?.[child.name] === undefined
+            ? {}
+            : { sourceColumnNumber: itemOrigin.sourceColumnNumbers[child.name] }),
+          path: [field.name, itemIndex, child.name],
+        },
         errors,
       );
       if (normalized.accepted) item[child.name] = normalized.value;

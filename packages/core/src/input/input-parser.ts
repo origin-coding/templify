@@ -1,5 +1,6 @@
 import type { StageResult } from '@/stage-result';
 import type { TabularInput } from '@/input/raw-input';
+import type { TemplateDefinition } from '@/template/template-definition';
 
 export type TabularInputFormat = 'csv' | 'xlsx';
 
@@ -19,8 +20,10 @@ export type CsvInputParser<
   TWarning = never,
 > = TabularInputParser<'csv', TSource, TError, TWarning>;
 
-export type ExcelInputParser<
-  TSource = Uint8Array,
-  TError = unknown,
-  TWarning = never,
-> = TabularInputParser<'xlsx', TSource, TError, TWarning>;
+export interface ExcelInputParser<TSource = Uint8Array, TError = unknown, TWarning = never> {
+  readonly format: 'xlsx';
+  parse(
+    source: TSource,
+    definition: TemplateDefinition,
+  ): Promise<StageResult<TabularInput, TError, TWarning>>;
+}

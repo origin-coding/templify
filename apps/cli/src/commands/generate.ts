@@ -13,16 +13,22 @@ import {
   preflightPublication,
   publishArtifacts,
 } from '@templify/node-output';
-import { parseCsvInput, validateScalarTabularTemplate } from '@templify/tabular-input';
+import {
+  detectInputFileFormat,
+  parseCsvInput,
+  parseXlsxInput,
+  validateScalarTabularTemplate,
+} from '@templify/tabular-input';
 import { CliFailure, requireStage } from '../cli-runtime';
 
 export const generate = define({
   name: 'generate',
-  description: 'Generate DOCX documents from manual values or CSV records.',
+  description: 'Generate DOCX documents from manual values, CSV, or XLSX records.',
   args: {
     template: { type: 'positional', description: 'DOCX template path' },
     set: { type: 'string', multiple: true, description: 'Field value (repeat: --set field=value)' },
-    input: { type: 'string', description: 'CSV input file', conflicts: 'set' },
+    input: { type: 'string', description: 'CSV or XLSX input file', conflicts: 'set' },
+    sheet: { type: 'string', description: 'Root worksheet name for XLSX input' },
     inputEncoding: {
       type: 'enum',
       choices: ['utf8', 'gbk'],
@@ -62,19 +68,43 @@ export const generate = define({
       throw new CliFailure('Choose one of --output-file, --output-dir, or --output-zip.', 2);
     if (ctx.values.inputEncoding && !inputPath)
       throw new CliFailure('--input-encoding requires --input.', 2);
+    if (ctx.values.sheet !== undefined && !inputPath)
+      throw new CliFailure('--sheet requires --input.', 2);
     if (ctx.values.pathTemplate && !outputDir && !outputZip)
       throw new CliFailure('--path-template requires --output-dir or --output-zip.', 2);
-    if (inputPath && path.extname(inputPath).toLocaleLowerCase('en-US') !== '.csv')
-      throw new CliFailure('Only .csv input is supported by this command.', 2);
+    const detected = inputPath ? detectInputFileFormat(inputPath) : undefined;
+    if (detected?.kind === 'unsupported-excel')
+      throw new CliFailure(
+        'Only .xlsx Excel files are supported; convert ' + detected.extension + ' to .xlsx.',
+        2,
+      );
+    if (detected?.kind === 'unknown')
+      throw new CliFailure(
+        'Unsupported input file extension ' +
+          JSON.stringify(detected.extension) +
+          '; use .csv or .xlsx.',
+        2,
+      );
+    const inputFormat = detected?.kind === 'supported' ? detected.format : undefined;
+    if (ctx.values.sheet !== undefined && inputFormat !== 'xlsx')
+      throw new CliFailure('--sheet requires .xlsx input.', 2);
+    if (ctx.values.inputEncoding && inputFormat !== 'csv')
+      throw new CliFailure('--input-encoding requires .csv input.', 2);
 
     const prepared = requireStage(prepareTemplate(await readFile(templatePath)));
-    if (inputPath) requireStage(validateScalarTabularTemplate(prepared.definition));
+    if (inputFormat === 'csv') requireStage(validateScalarTabularTemplate(prepared.definition));
     const input = inputPath
-      ? requireStage(
-          parseCsvInput(await readFile(inputPath), {
-            encoding: ctx.values.inputEncoding === 'gbk' ? 'gbk' : 'utf8',
-          }),
-        )
+      ? inputFormat === 'csv'
+        ? requireStage(
+            parseCsvInput(await readFile(inputPath), {
+              encoding: ctx.values.inputEncoding === 'gbk' ? 'gbk' : 'utf8',
+            }),
+          )
+        : requireStage(
+            await parseXlsxInput(await readFile(inputPath), prepared.definition, {
+              ...(ctx.values.sheet === undefined ? {} : { sheet: ctx.values.sheet }),
+            }),
+          )
       : { kind: 'object-rows' as const, rows: [parseSetValues(ctx.values.set ?? [])] };
 
     const outputPath = outputFile

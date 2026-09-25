@@ -19,6 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.test.json --pretty false && tsc -p tsconfig.config.json --pretty false"
   },
   "dependencies": {
+    "@office-kit/xlsx": "^0.22.0",
     "@templify/core": "workspace:*",
     "csv-parse": "^7.0.2"
   },

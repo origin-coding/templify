@@ -10,6 +10,8 @@ export interface TabularInput {
   readonly columns: readonly string[];
   readonly rows: readonly (readonly unknown[])[];
   readonly origins?: readonly InputRowOrigin[];
+  /** Collection item origins, parallel to rows and keyed by collection name. */
+  readonly collectionOrigins?: readonly Readonly<Record<string, readonly InputRowOrigin[]>>[];
 }
 
 export type RawInputBatch = ObjectRowsInput | TabularInput;

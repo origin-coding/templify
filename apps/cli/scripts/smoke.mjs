@@ -474,6 +474,106 @@ try {
     path.join(temp, 'gbk-output'),
   ]);
 
+  const collectionDocx = path.join(temp, 'xlsx-collection.docx');
+  await writeFile(
+    collectionDocx,
+    createDocx([
+      ['{name}'],
+      ['{#lineItems}'],
+      ['{sku}'],
+      ['{/lineItems}'],
+      ['{#payments}'],
+      ['{method}'],
+      ['{/payments}'],
+    ]),
+  );
+  const xlsxInput = path.join(temp, 'records.xlsx');
+  run(process.execPath, [
+    bin,
+    'inspect',
+    collectionDocx,
+    '--format',
+    'excel-template',
+    '--output',
+    xlsxInput,
+  ]);
+  const importXlsx = (subpath) =>
+    import(
+      new URL(
+        '../../../packages/tabular-input/node_modules/@office-kit/xlsx/dist/' + subpath + '.mjs',
+        import.meta.url,
+      ).href
+    );
+  const { fromArrayBuffer, loadWorkbook, workbookToBytes } = await importXlsx('io');
+  const { addWorksheet } = await importXlsx('workbook');
+  const { appendRow } = await importXlsx('worksheet');
+  const xlsxBook = await loadWorkbook(fromArrayBuffer(await readFile(xlsxInput)));
+  assert.deepEqual(
+    xlsxBook.sheets.map((ref) => ref.sheet.title),
+    ['Records', 'lineItems', 'payments'],
+  );
+  appendRow(addWorksheet(xlsxBook, 'Notes', { index: 0 }), ['Ignore']);
+  appendRow(xlsxBook.sheets[1].sheet, ['r1', 'Alice']);
+  appendRow(xlsxBook.sheets[1].sheet, ['r2', 'Bob']);
+  appendRow(xlsxBook.sheets[2].sheet, ['r2', 'SKU-B']);
+  appendRow(xlsxBook.sheets[2].sheet, ['r1', 'SKU-A']);
+  appendRow(xlsxBook.sheets[3].sheet, ['r1', 'Cash']);
+  await writeFile(xlsxInput, await workbookToBytes(xlsxBook));
+  const xlsxArchive = path.join(temp, 'xlsx-documents.zip');
+  run(process.execPath, [
+    bin,
+    'generate',
+    collectionDocx,
+    '--input',
+    xlsxInput,
+    '--sheet',
+    'Records',
+    '--output-zip',
+    xlsxArchive,
+  ]);
+  const xlsxZip = new PizZip(await readFile(xlsxArchive));
+  assert.match(
+    new PizZip(xlsxZip.file('document-1.docx').asUint8Array()).file('word/document.xml').asText(),
+    /Alice.*SKU-A.*Cash/u,
+  );
+  assert.match(
+    new PizZip(xlsxZip.file('document-2.docx').asUint8Array()).file('word/document.xml').asText(),
+    /Bob.*SKU-B/u,
+  );
+
+  const legacyExcel = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      path.join(temp, 'legacy.xls'),
+      '--output-dir',
+      path.join(temp, 'legacy-output'),
+    ],
+    cliRoot,
+    2,
+  );
+  assert.match(legacyExcel.stderr, /Only .xlsx Excel files are supported/u);
+  const badSheetOption = run(
+    process.execPath,
+    [
+      bin,
+      'generate',
+      template,
+      '--input',
+      csvInput,
+      '--sheet',
+      'Records',
+      '--output-dir',
+      path.join(temp, 'bad-sheet-output'),
+    ],
+    cliRoot,
+    2,
+  );
+  assert.match(badSheetOption.stderr, /--sheet requires .xlsx input/u);
+
   process.stdout.write('CLI isolated-install smoke test passed.\n');
 } finally {
   const parent = path.resolve(tmpdir()) + path.sep;
