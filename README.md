@@ -68,6 +68,36 @@ pnpm test:run
 pnpm build
 ```
 
+## Desktop
+
+The desktop app currently supports the first manual-input workflow: choose a DOCX
+template, inspect its fields, fill one record, and save one DOCX. It uses the same
+core generation and filesystem publication pipeline as the CLI. Existing output
+files are refused unless **Allow overwrite** is selected.
+
+Start the development app:
+
+```shell
+pnpm --filter @templify/desktop dev
+```
+
+The script builds the shared packages, starts their watchers and Nuxt, then starts
+Electron after the renderer and both Electron bundles are ready. Nuxt updates the
+page through HMR. A successful rebuild of main or preload restarts Electron.
+
+Electron downloads its runtime binary separately from the npm package. If the
+default download is unavailable, set `ELECTRON_MIRROR` before running the dev
+script (for example, `https://npmmirror.com/mirrors/electron/`).
+
+Build the desktop assets or create an unpacked Windows application:
+
+```shell
+pnpm --filter @templify/desktop build
+pnpm --filter @templify/desktop exec electron-builder --dir
+```
+
+The app currently has no signing, updater, or release publishing configuration.
+
 ## CLI
 
 The CLI supports template inspection, manual values, CSV/XLSX records, and single, directory, or ZIP DOCX output.
