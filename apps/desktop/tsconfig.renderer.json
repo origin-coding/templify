@@ -1,4 +1,0 @@
-{
-  "extends": "./.nuxt/tsconfig.app.json",
-  "include": [".nuxt/nuxt.d.ts", "src/renderer/**/*.vue", "src/renderer/**/*.ts"]
-}

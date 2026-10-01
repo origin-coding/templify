@@ -85,6 +85,13 @@ The script builds the shared packages, starts their watchers and Nuxt, then star
 Electron after the renderer and both Electron bundles are ready. Nuxt updates the
 page through HMR. A successful rebuild of main or preload restarts Electron.
 
+The desktop TypeScript configuration uses Nuxt 4 project references alongside
+the Electron configuration. `pnpm install` prepares Nuxt's generated types. The
+workspace uses TypeScript 5.9 so Nuxt, `vue-tsc`, and the IDE's Vue language
+service share the same JavaScript SDK. In WebStorm, select the workspace's
+`node_modules/typescript` package and use the Vue language server in Auto mode
+with its service-powered type engine enabled.
+
 Electron downloads its runtime binary separately from the npm package. If the
 default download is unavailable, set `ELECTRON_MIRROR` before running the dev
 script (for example, `https://npmmirror.com/mirrors/electron/`).
