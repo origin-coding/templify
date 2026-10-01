@@ -7,6 +7,7 @@ import {
   appRoot,
   buildWorkspacePackages,
   coreRoot,
+  inputRoot,
   electronPath,
   nuxtCliPath,
   outputRoot,
@@ -42,6 +43,10 @@ try {
   });
   supervisor.start('node-output', process.execPath, [tsdownCliPath(outputRoot), '--watch'], {
     workingDirectory: outputRoot,
+    env: { ...process.env, NODE_ENV: 'development' },
+  });
+  supervisor.start('tabular-input', process.execPath, [tsdownCliPath(inputRoot), '--watch'], {
+    workingDirectory: inputRoot,
     env: { ...process.env, NODE_ENV: 'development' },
   });
   supervisor.start(

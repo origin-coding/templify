@@ -19,6 +19,7 @@ export const nuxtCliPath = path.join(
 
 export const coreRoot = path.join(workspaceRoot, 'packages/core');
 export const outputRoot = path.join(workspaceRoot, 'packages/node-output');
+export const inputRoot = path.join(workspaceRoot, 'packages/tabular-input');
 
 export function tsdownCliPath(packageRoot) {
   const packageRequire = createRequire(path.join(packageRoot, 'package.json'));
@@ -44,4 +45,5 @@ export function runNode(script, args = [], options = {}) {
 export async function buildWorkspacePackages() {
   await runNode(tsdownCliPath(coreRoot), [], { cwd: coreRoot });
   await runNode(tsdownCliPath(outputRoot), [], { cwd: outputRoot });
+  await runNode(tsdownCliPath(inputRoot), [], { cwd: inputRoot });
 }

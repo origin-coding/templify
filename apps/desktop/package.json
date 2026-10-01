@@ -7,21 +7,27 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
+    "ui:check": "node scripts/verify-ui.mjs",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt prepare && vue-tsc --build --noEmit"
+    "typecheck": "nuxt prepare && vue-tsc --build --noEmit && tsc -p tsconfig.test.json --pretty false"
   },
   "devDependencies": {
+    "@nuxtjs/i18n": "^10.6.0",
+    "@pinia/nuxt": "^1.0.2",
     "@tdesign-vue-next/nuxt": "^0.2.2",
     "@templify/core": "workspace:*",
     "@templify/node-output": "workspace:*",
+    "@templify/tabular-input": "workspace:*",
     "@types/node": "catalog:",
     "electron": "^42.3.0",
     "electron-builder": "^26.8.1",
     "nuxt": "^4.5.2",
+    "pinia": "^4.0.3",
     "tdesign-vue-next": "^1.20.7",
     "typescript": "catalog:",
     "vite": "^8.3.0",
     "vue": "^3.5.42",
+    "vue-i18n": "^11.4.12",
     "vue-tsc": "^3.3.11"
   },
   "build": {

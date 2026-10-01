@@ -2,6 +2,15 @@ import PizZip from 'pizzip';
 
 export type Paragraph = readonly string[];
 
+export function readArchive(bytes: Uint8Array): Record<string, Buffer> {
+  const zip = new PizZip(bytes);
+  return Object.fromEntries(
+    Object.entries(zip.files)
+      .filter(([, entry]) => !entry.dir)
+      .map(([name, entry]) => [name, entry.asNodeBuffer()]),
+  );
+}
+
 export function createDocx(paragraphs: readonly Paragraph[]): Buffer {
   return createDocxFromBodyXml(paragraphs.map(createParagraphXml).join(''));
 }
