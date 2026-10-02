@@ -243,6 +243,16 @@ async function verify() {
       boolean: { trueText: 'Yes', falseText: 'No' },
     });
     await screenshot('format-defaults-1600');
+    const formatColumns = await evaluate<{ header: number[]; rows: number[][] }>(
+      `({ header: Array.from(document.querySelectorAll('.format-table thead th')).map(cell => cell.getBoundingClientRect().x), rows: Array.from(document.querySelectorAll('.format-entry')).map(row => Array.from(row.children).map(cell => cell.getBoundingClientRect().x)) })`,
+    );
+    assert.equal(formatColumns.rows.length, 4);
+    for (const row of formatColumns.rows)
+      assert.deepEqual(row, formatColumns.header, 'Formatting columns must align across rows');
+    await writeFile(
+      path.resolve('.desktop/format-defaults-qa.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
     await resize(760, 580);
     assert.ok(
       await evaluate(
@@ -251,6 +261,10 @@ async function verify() {
       'Formatting Apply button must remain visible',
     );
     await screenshot('format-defaults-760');
+    await writeFile(
+      path.resolve('.desktop/format-defaults-760-qa.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
     await resize(1600, 900);
     await evaluate(
       `Array.from(document.querySelectorAll('.t-dialog')).find(dialog => dialog.textContent.includes('界面语言')).querySelector('.t-dialog__close').click()`,
@@ -505,6 +519,12 @@ async function verify() {
       (await window.webContents.capturePage()).toPNG(),
     );
     assert.equal(await evaluate(`'printPdf' in window.templify`), false);
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.pdf-preview-dialog .pdf-notice').textContent.includes('最终生成的 DOCX 文件为准')`,
+      ),
+      'PDF preview must state that the generated DOCX is authoritative',
+    );
     assert.equal(
       await evaluate(
         `document.querySelector('.pdf-preview-dialog').textContent.includes('打印当前预览')`,
@@ -530,6 +550,12 @@ async function verify() {
     await evaluate(`testStore.go(2)`);
     await evaluate(
       `testStore.updateOutput({ documentFormat: 'pdf', mode: 'zip', destination: '', mergedPdf: 'merged.pdf' })`,
+    );
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.panel .pdf-notice').textContent.includes('字体、格式或分页错误')`,
+      ),
+      'PDF output must display the fidelity warning before generation',
     );
     assert.equal(await evaluate(`testStore.output.pathTemplate`), '{name}.pdf');
     assert.equal(typeof (await evaluate(`testStore.pdfPreviewId`)), 'number');

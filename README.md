@@ -168,9 +168,11 @@ while command results go to stdout.
 `--merged-pdf` path is available only with `--output-dir` or `--output-zip`. With
 DOCX output, the per-record PDFs used for merging stay in memory; only DOCX
 files and the aggregate PDF are published. With PDF output, both the
-per-record PDFs and aggregate PDF are published. Conversion can change fonts,
-layout, or pagination relative to the DOCX template; conversion losses are
-reported on stderr.
+per-record PDFs and aggregate PDF are published. **PDF previews and exports may
+contain font, formatting, or pagination errors. Fidelity is not guaranteed,
+even when fonts are embedded. The final rendered DOCX is authoritative.**
+Conversion losses detected by the converter are reported on stderr; an absence
+of warnings does not guarantee PDF fidelity.
 
 `inspect --format json`, `csv-template`, and `excel-template` require `.json`,
 `.csv`, and `.xlsx` output paths respectively. Table output has no required

@@ -15,7 +15,10 @@ Desktop PDF preview is optional and precedes publication. It supports a selected
 record or all records merged into one PDF, without requiring an output location.
 The all-record preview action belongs above the record list or imported table;
 individual preview actions belong to the current record. Data or template changes
-invalidate the preview. DOCX remains authoritative; PDF is a best-effort derivative.
+invalidate the preview. PDF previews and exports may contain font, formatting,
+or pagination errors, including with embedded fonts. Fidelity is not guaranteed;
+the final rendered DOCX remains authoritative. A persistent warning is shown in
+the preview dialog and when PDF or merged PDF output is selected.
 
 The visible preview uses `@embedpdf/vue-pdf-viewer` in a Vue dialog, with its
 PDFium WASM packaged locally. Conversion-loss diagnostics remain available from

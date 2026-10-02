@@ -344,9 +344,39 @@ fieldset {
 .format-panel--defaults .format-entries {
   max-height: calc(100vh - 400px);
 }
-.format-entry {
-  border-top: 1px solid var(--td-component-stroke);
-  padding: 16px 0;
+.format-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.format-label-column {
+  width: 20%;
+}
+.format-settings-column {
+  width: 52%;
+}
+.format-example-column {
+  width: 28%;
+}
+.format-table th,
+.format-table td {
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--td-component-stroke);
+}
+.format-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--td-bg-color-secondarycontainer);
+  z-index: 1;
+}
+.format-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 .format-controls {
   display: grid;
@@ -377,6 +407,9 @@ fieldset {
 }
 .format-task-entry {
   margin-bottom: 16px;
+}
+.pdf-notice {
+  margin: 16px 0;
 }
 @media (max-width: 600px) {
   .format-controls {

@@ -46,7 +46,7 @@ const config = computed<PDFViewerConfig>(() => ({
     :destroy-on-close="true"
     class="pdf-preview-dialog"
   >
-    <p class="muted">{{ t('pdfBestEffort') }}</p>
+    <TAlert theme="warning" class="pdf-notice">{{ t('pdfBestEffort') }}</TAlert>
     <div v-if="store.pdfPreviewOpen && store.pdfPreviewSource" class="pdf-viewer-content">
       <PDFViewer
         :key="store.pdfPreviewId"
@@ -59,7 +59,7 @@ const config = computed<PDFViewerConfig>(() => ({
 
 <style scoped>
 .pdf-viewer-content {
-  height: calc(100vh - 200px);
+  height: calc(100vh - 260px);
   min-height: 280px;
 }
 </style>

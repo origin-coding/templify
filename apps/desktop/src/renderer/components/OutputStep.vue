@@ -100,7 +100,13 @@ watch(
       </TTooltip>
     </div>
   </div>
-  <p class="muted">{{ t('pdfBestEffort') }}</p>
+  <TAlert
+    v-if="store.output.documentFormat === 'pdf' || store.output.mergedPdf !== undefined"
+    theme="warning"
+    class="pdf-notice"
+    >{{ t('pdfBestEffort') }}</TAlert
+  >
+  <p class="muted">{{ t('pdfPreviewHint') }}</p>
   <section v-if="store.preview" class="output-preview">
     <div class="preview-heading">
       <strong

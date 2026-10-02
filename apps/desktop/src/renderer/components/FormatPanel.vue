@@ -130,40 +130,58 @@ async function save() {
   <div class="format-panel" :class="`format-panel--${scope}`">
     <p class="muted">{{ t(scope === 'defaults' ? 'formatDefaultsHint' : 'formatFieldsHint') }}</p>
     <p v-if="!entries.length" class="muted">{{ t('formatNoFields') }}</p>
-    <div class="format-entries">
-      <div v-for="entry in entries" :key="key(entry.path)" class="format-entry">
-        <div class="toolbar wrap">
-          <strong>{{
-            scope === 'defaults'
-              ? t(
-                  entry.type === 'boolean'
-                    ? 'formatBoolean'
-                    : entry.type === 'number'
-                      ? 'formatNumber'
-                      : entry.type === 'date'
-                        ? 'formatDate'
-                        : 'formatDatetime',
-                )
-              : entry.path.join(' / ')
-          }}</strong>
-          <TCheckbox :checked="!!draft[key(entry.path)]" @change="toggle(entry, $event)">{{
-            t('formatCustom')
-          }}</TCheckbox>
-          <span v-if="!draft[key(entry.path)]" class="muted">{{
-            t(scope === 'defaults' ? 'formatBuiltin' : 'formatAppDefault')
-          }}</span>
-        </div>
-        <FormatControls
-          v-if="draft[key(entry.path)]"
-          :model-value="draft[key(entry.path)]!"
-          @update:model-value="draft[key(entry.path)] = $event"
-        />
-        <p class="muted format-example">
-          {{ t('formatExample') }}：{{
-            examples.find((example) => key(example.path) === key(entry.path))?.text ?? '…'
-          }}
-        </p>
-      </div>
+    <div v-if="entries.length" class="format-entries">
+      <table class="format-table">
+        <colgroup>
+          <col class="format-label-column" />
+          <col class="format-settings-column" />
+          <col class="format-example-column" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">{{ t(scope === 'defaults' ? 'formatType' : 'formatField') }}</th>
+            <th scope="col">{{ t('formatSettings') }}</th>
+            <th scope="col">{{ t('formatExample') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="entry in entries" :key="key(entry.path)" class="format-entry">
+            <th scope="row">
+              <strong>{{
+                scope === 'defaults'
+                  ? t(
+                      entry.type === 'boolean'
+                        ? 'formatBoolean'
+                        : entry.type === 'number'
+                          ? 'formatNumber'
+                          : entry.type === 'date'
+                            ? 'formatDate'
+                            : 'formatDatetime',
+                    )
+                  : entry.path.join(' / ')
+              }}</strong>
+            </th>
+            <td>
+              <div class="format-choice">
+                <TCheckbox :checked="!!draft[key(entry.path)]" @change="toggle(entry, $event)">{{
+                  t('formatCustom')
+                }}</TCheckbox>
+                <span v-if="!draft[key(entry.path)]" class="muted">{{
+                  t(scope === 'defaults' ? 'formatBuiltin' : 'formatAppDefault')
+                }}</span>
+              </div>
+              <FormatControls
+                v-if="draft[key(entry.path)]"
+                :model-value="draft[key(entry.path)]!"
+                @update:model-value="draft[key(entry.path)] = $event"
+              />
+            </td>
+            <td class="muted format-example">
+              {{ examples.find((example) => key(example.path) === key(entry.path))?.text ?? '…' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <TAlert v-if="error" theme="error">{{ error }}</TAlert>
     <div class="toolbar wrap format-save">
