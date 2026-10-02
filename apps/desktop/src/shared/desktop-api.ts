@@ -1,0 +1,108 @@
+import type {
+  RecordData,
+  RecordOrigin,
+  TemplateDefinition,
+  RenderDefaults,
+  RenderOptions,
+} from '@templify/core';
+import type { AppSettings, LanguagePreference } from './settings';
+import type { PdfFontData, PdfFontRequest } from '@templify/node-output';
+
+export interface DesktopIssue {
+  readonly stage: string;
+  readonly code: string;
+  readonly details: string;
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+export type DesktopResult<T> =
+  | { readonly status: 'ok'; readonly value: T; readonly warnings: readonly DesktopIssue[] }
+  | { readonly status: 'cancelled' }
+  | {
+      readonly status: 'error';
+      readonly issue: DesktopIssue;
+      readonly issues: readonly DesktopIssue[];
+      readonly warnings: readonly DesktopIssue[];
+      readonly source?: InputSource;
+    };
+export interface InspectedTemplate {
+  readonly path: string;
+  readonly definition: TemplateDefinition;
+}
+export interface InputSource {
+  readonly path: string;
+  readonly format: 'csv' | 'xlsx';
+  readonly sheets: readonly string[];
+  readonly sheet?: string;
+  readonly encoding: 'utf8' | 'gbk';
+}
+export interface ImportedRecords {
+  readonly source: InputSource;
+  readonly records: readonly RecordData[];
+  readonly origins: readonly RecordOrigin[];
+}
+export interface ImportOptions {
+  readonly sheet?: string;
+  readonly encoding: 'utf8' | 'gbk';
+}
+export type OutputMode = 'single' | 'directory' | 'zip';
+export interface OutputSettings {
+  readonly mode: OutputMode;
+  readonly destination: string;
+  readonly pathTemplate: string;
+  readonly documentFormat?: 'docx' | 'pdf';
+  readonly mergedPdf?: string;
+}
+export interface OutputPreview {
+  readonly id: number;
+  readonly documentCount: number;
+  readonly paths: readonly string[];
+  readonly destination: string;
+  readonly mode: OutputMode;
+}
+export interface GeneratedDocuments {
+  readonly documentCount: number;
+  readonly paths: readonly string[];
+  readonly replacedCount: number;
+}
+export interface PdfPreview {
+  readonly id: number;
+  readonly bytes: Uint8Array;
+}
+export interface DesktopApi {
+  formatExamples(
+    options: RenderOptions,
+    perField: boolean,
+  ): Promise<DesktopResult<readonly { path: readonly string[]; text: string }[]>>;
+  getSettings(): Promise<AppSettings>;
+  setRenderDefaults(defaults: RenderDefaults): Promise<DesktopResult<AppSettings>>;
+  setLanguage(language: LanguagePreference): Promise<DesktopResult<AppSettings>>;
+  onPhase(callback: (phase: string) => void): () => void;
+  selectTemplate(): Promise<DesktopResult<InspectedTemplate>>;
+  importRecords(options: ImportOptions, reuse: boolean): Promise<DesktopResult<ImportedRecords>>;
+  exportExcel(): Promise<DesktopResult<string>>;
+  openExcelTemplate(): Promise<DesktopResult<boolean>>;
+  openDocumentation(): Promise<DesktopResult<boolean>>;
+  validateRecords(
+    records: readonly Readonly<Record<string, unknown>>[] | null,
+  ): Promise<DesktopResult<number>>;
+  selectOutput(mode: OutputMode, format?: 'docx' | 'pdf'): Promise<DesktopResult<string>>;
+  previewOutput(
+    records: readonly Readonly<Record<string, unknown>>[] | null,
+    settings: OutputSettings,
+    renderOptions?: RenderOptions,
+  ): Promise<DesktopResult<OutputPreview>>;
+  generate(previewId: number): Promise<DesktopResult<GeneratedDocuments>>;
+  openOutput(): Promise<DesktopResult<boolean>>;
+  openOutputFile(): Promise<DesktopResult<boolean>>;
+  previewPdf(
+    records: readonly Readonly<Record<string, unknown>>[] | null,
+    selection: number | 'all',
+    renderOptions?: RenderOptions,
+  ): Promise<DesktopResult<PdfPreview>>;
+  onFontRequest(
+    callback: (requests: readonly PdfFontRequest[]) => Promise<readonly PdfFontData[]>,
+  ): () => void;
+  resetInput(): Promise<DesktopResult<boolean>>;
+  invalidateOutput(preservePdf?: boolean): Promise<DesktopResult<boolean>>;
+  reset(): Promise<DesktopResult<boolean>>;
+}

@@ -60,7 +60,48 @@ export function validateRenderOptions(
     const timeZone =
       validateTimeZone(candidate.timeZone) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (timeZone === undefined || timeZone.length === 0) fail('InvalidTimeZone');
+    const defaults = candidate.defaults ?? {};
+    if (!isPlainObject(defaults)) fail('InvalidFormatRule');
+    for (const [type, format] of Object.entries(defaults)) {
+      if (!isFormatType(type) || !isPlainObject(format) || 'type' in format)
+        fail('InvalidFormatRule');
+      validateFormat(
+        { kind: 'scalar', name: type, hint: { type } },
+        { ...format, type },
+        [type],
+        locale,
+        timeZone,
+      );
+    }
     const formats = validateRules(definition.fields, candidate.formats ?? [], locale, timeZone);
+    for (const field of definition.fields) {
+      const leaves =
+        field.kind === 'scalar'
+          ? [{ field, path: [field.name] as FieldPath }]
+          : field.fields.map((child) => ({
+              field: child,
+              path: [field.name, child.name] as FieldPath,
+            }));
+      for (const leaf of leaves) {
+        const type = leaf.field.hint.type;
+        if (
+          !isFormatType(type) ||
+          defaults[type] === undefined ||
+          formats.some((rule) => JSON.stringify(rule.path) === JSON.stringify(leaf.path))
+        )
+          continue;
+        formats.push({
+          path: leaf.path,
+          format: validateFormat(
+            leaf.field,
+            { ...defaults[type], type },
+            leaf.path,
+            locale,
+            timeZone,
+          ),
+        });
+      }
+    }
     return { ok: true, value: { locale, timeZone, formats }, warnings: [] };
   } catch (cause) {
     const issue =
@@ -76,7 +117,7 @@ function validateRules(
   rules: unknown,
   locale: RenderLocale,
   timeZone: string,
-): readonly ValidatedFieldFormatRule[] {
+): ValidatedFieldFormatRule[] {
   if (!Array.isArray(rules)) fail('InvalidFormatRule');
   const formats: ValidatedFieldFormatRule[] = [];
   const keys = new Set<string>();

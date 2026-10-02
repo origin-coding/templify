@@ -1,5 +1,10 @@
 node_modules/
 dist/
+**/.desktop/
+**/.nuxt/
+**/.output/
+**/.vite/
+apps/desktop/release/
 coverage/
 .pnpm-store/
 

@@ -39,6 +39,11 @@ The current shared packages are:
 
 See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
 
+CLI generation accepts `--render-options <file.json>` for type defaults and
+individual field formats. Desktop provides persistent default formats in Settings
+and task-specific rules in Prepare Data. See [render formatting](./docs/decisions/render-formatting.md)
+for the configuration format and precedence.
+
 ## Development
 
 Requirements:
@@ -67,6 +72,43 @@ pnpm typecheck
 pnpm test:run
 pnpm build
 ```
+
+## Desktop
+
+The desktop app currently supports the first manual-input workflow: choose a DOCX
+template, inspect its fields, fill one record, and save one DOCX. It uses the same
+core generation and filesystem publication pipeline as the CLI. Existing output
+files are refused unless **Allow overwrite** is selected.
+
+Start the development app:
+
+```shell
+pnpm --filter @templify/desktop dev
+```
+
+The script builds the shared packages, starts their watchers and Nuxt, then starts
+Electron after the renderer and both Electron bundles are ready. Nuxt updates the
+page through HMR. A successful rebuild of main or preload restarts Electron.
+
+The desktop TypeScript configuration uses Nuxt 4 project references alongside
+the Electron configuration. `pnpm install` prepares Nuxt's generated types. The
+workspace uses TypeScript 5.9 so Nuxt, `vue-tsc`, and the IDE's Vue language
+service share the same JavaScript SDK. In WebStorm, select the workspace's
+`node_modules/typescript` package and use the Vue language server in Auto mode
+with its service-powered type engine enabled.
+
+Electron downloads its runtime binary separately from the npm package. If the
+default download is unavailable, set `ELECTRON_MIRROR` before running the dev
+script (for example, `https://npmmirror.com/mirrors/electron/`).
+
+Build the desktop assets or create an unpacked Windows application:
+
+```shell
+pnpm --filter @templify/desktop build
+pnpm --filter @templify/desktop exec electron-builder --dir
+```
+
+The app currently has no signing, updater, or release publishing configuration.
 
 ## CLI
 
@@ -126,9 +168,11 @@ while command results go to stdout.
 `--merged-pdf` path is available only with `--output-dir` or `--output-zip`. With
 DOCX output, the per-record PDFs used for merging stay in memory; only DOCX
 files and the aggregate PDF are published. With PDF output, both the
-per-record PDFs and aggregate PDF are published. Conversion can change fonts,
-layout, or pagination relative to the DOCX template; conversion losses are
-reported on stderr.
+per-record PDFs and aggregate PDF are published. **PDF previews and exports may
+contain font, formatting, or pagination errors. Fidelity is not guaranteed,
+even when fonts are embedded. The final rendered DOCX is authoritative.**
+Conversion losses detected by the converter are reported on stderr; an absence
+of warnings does not guarantee PDF fidelity.
 
 `inspect --format json`, `csv-template`, and `excel-template` require `.json`,
 `.csv`, and `.xlsx` output paths respectively. Table output has no required

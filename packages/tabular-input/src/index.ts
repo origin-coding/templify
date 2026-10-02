@@ -11,4 +11,5 @@ export type {
 export { parseXlsxInput } from './parse-xlsx-input';
 export type { ParseXlsxInputOptions, XlsxInputError, XlsxInputWarning } from './parse-xlsx-input';
 export { createXlsxTemplate } from './xlsx-template';
+export { listXlsxSheets } from './xlsx-sheets';
 export type { XlsxTemplateError } from './xlsx-protocol';

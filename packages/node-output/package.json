@@ -6,6 +6,8 @@
     "dist"
   ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.test.json --pretty false && tsc -p tsconfig.config.json --pretty false"
   },
   "dependencies": {
-    "@templify/core": "workspace:*"
+    "@templify/core": "workspace:*",
+    "reamkit": "^1.29.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

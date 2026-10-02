@@ -7,9 +7,11 @@ import {
   packageArtifacts,
   prepareGeneration,
   prepareTemplate,
+  type RenderOptions,
 } from '@templify/core';
 import {
   createPublicationPlan,
+  createNodePdfConverter,
   preflightPublication,
   publishArtifacts,
 } from '@templify/node-output';
@@ -25,6 +27,11 @@ export const generate = define({
   name: 'generate',
   description: 'Generate DOCX or PDF documents from manual values, CSV, or XLSX records.',
   args: {
+    renderOptions: {
+      type: 'string',
+      toKebab: true,
+      description: 'JSON file containing type defaults and per-field formatting rules',
+    },
     template: { type: 'positional', description: 'DOCX template path' },
     set: { type: 'string', multiple: true, description: 'Field value (repeat: --set field=value)' },
     input: { type: 'string', description: 'CSV or XLSX input file', conflicts: 'set' },
@@ -116,6 +123,20 @@ export const generate = define({
       throw new CliFailure('--input-encoding requires .csv input.', 2);
 
     const prepared = requireStage(prepareTemplate(await readFile(templatePath)));
+    let renderOptions: RenderOptions = {};
+    if (ctx.values.renderOptions) {
+      try {
+        renderOptions = JSON.parse(
+          await readFile(path.resolve(ctx.values.renderOptions), 'utf8'),
+        ) as RenderOptions;
+      } catch (cause) {
+        throw new CliFailure(
+          'Unable to read --render-options JSON: ' +
+            (cause instanceof Error ? cause.message : String(cause)),
+          2,
+        );
+      }
+    }
     if (inputFormat === 'csv') requireStage(validateScalarTabularTemplate(prepared.definition));
     const input = inputPath
       ? inputFormat === 'csv'
@@ -145,6 +166,7 @@ export const generate = define({
     const generation = requireStage(
       prepareGeneration({
         template: prepared,
+        renderOptions,
         input,
         request: {
           naming,
@@ -165,7 +187,11 @@ export const generate = define({
         manifest: derivePublicationManifest(generation.plan),
         rootDirectory: outputPath ? path.dirname(outputPath) : path.resolve(outputDir!),
         conflictPolicy: ctx.values.overwrite ? 'overwrite' : 'error',
-        protectedPaths: inputPath ? [templatePath, inputPath] : [templatePath],
+        protectedPaths: [
+          templatePath,
+          ...(inputPath ? [inputPath] : []),
+          ...(ctx.values.renderOptions ? [path.resolve(ctx.values.renderOptions)] : []),
+        ],
       }),
     );
     const preflighted = requireStage(await preflightPublication(publicationPlan));
@@ -175,7 +201,9 @@ export const generate = define({
       }
       return;
     }
-    const generated = requireStage(await generateArtifacts(generation));
+    const generated = requireStage(
+      await generateArtifacts(generation, { pdfConverter: createNodePdfConverter() }),
+    );
     const packaged = requireStage(packageArtifacts(generation.plan, generated));
     const published = requireStage(await publishArtifacts(preflighted, packaged));
     for (const artifact of published.artifacts) process.stdout.write(artifact.path + '\n');
