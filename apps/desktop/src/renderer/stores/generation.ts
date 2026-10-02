@@ -2,7 +2,7 @@ import { t } from '../utils/i18n';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { clearLocalFonts } from '../utils/local-fonts';
-import type { FieldDefinition, ScalarFieldDefinition } from '@templify/core';
+import type { FieldDefinition, ScalarFieldDefinition, FieldFormatRule } from '@templify/core';
 import type {
   DesktopIssue,
   DesktopResult,
@@ -31,6 +31,12 @@ const defaultOutput = (): OutputSettings => ({
 });
 
 export const useGenerationStore = defineStore('generation', () => {
+  const formats = ref<readonly FieldFormatRule[]>([]);
+  function setFormats(value: readonly FieldFormatRule[]) {
+    if (busy.value) return;
+    formats.value = value;
+    invalidate();
+  }
   const template = ref<InspectedTemplate>();
   const mode = ref<'manual' | 'file'>('manual');
   const drafts = ref<{ id: number; values: Record<string, unknown> }[]>([]);
@@ -100,6 +106,7 @@ export const useGenerationStore = defineStore('generation', () => {
   }
   function clearTask() {
     clearLocalFonts();
+    formats.value = [];
     template.value = undefined;
     exportedTemplate.value = undefined;
     mode.value = 'manual';
@@ -273,7 +280,12 @@ export const useGenerationStore = defineStore('generation', () => {
   }
   async function planOutput() {
     const result = await perform(
-      () => window.templify.previewOutput(snapshot(), { ...output.value }),
+      () =>
+        window.templify.previewOutput(
+          snapshot(),
+          { ...output.value },
+          { formats: JSON.parse(JSON.stringify(formats.value)) },
+        ),
       t('planOutput'),
     );
     preview.value = result?.status === 'ok' ? result.value : undefined;
@@ -302,7 +314,10 @@ export const useGenerationStore = defineStore('generation', () => {
     if (busy.value) return;
     clearPdfPreview();
     const result = await perform(
-      () => window.templify.previewPdf(snapshot(), selection),
+      () =>
+        window.templify.previewPdf(snapshot(), selection, {
+          formats: JSON.parse(JSON.stringify(formats.value)),
+        }),
       t('previewPdf'),
     );
     if (result?.status === 'ok') {
@@ -320,6 +335,8 @@ export const useGenerationStore = defineStore('generation', () => {
     pdfPreviewId.value = undefined;
   }
   return {
+    formats,
+    setFormats,
     template,
     mode,
     drafts,

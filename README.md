@@ -39,6 +39,11 @@ The current shared packages are:
 
 See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
 
+CLI generation accepts `--render-options <file.json>` for type defaults and
+individual field formats. Desktop provides persistent default formats in Settings
+and task-specific rules in Prepare Data. See [render formatting](./docs/decisions/render-formatting.md)
+for the configuration format and precedence.
+
 ## Development
 
 Requirements:

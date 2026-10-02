@@ -10,7 +10,13 @@ import { readLocalFonts } from '../utils/local-fonts';
 const store = useGenerationStore();
 const aboutVisible = ref(false);
 const settingsVisible = ref(false);
+const formatsVisible = ref(false);
 const preferences = usePreferencesStore();
+watch(
+  () => preferences.renderDefaults,
+  () => store.invalidate(),
+  { deep: true },
+);
 useHead(() => ({ htmlAttrs: { lang: preferences.locale } }));
 function changeLanguage(value: unknown) {
   if (isLanguagePreference(value)) void preferences.setLanguage(value);
@@ -141,6 +147,11 @@ function stepStatus(index: number): 'default' | 'process' | 'finish' | 'error' {
                 </button></TTooltip
               >
             </div>
+            <div class="toolbar format-task-entry">
+              <TButton variant="outline" @click="formatsVisible = true">{{
+                t('formatFields')
+              }}</TButton>
+            </div>
             <ManualRecords v-if="store.mode === 'manual'" />
             <FileRecords v-else />
           </template>
@@ -177,12 +188,30 @@ function stepStatus(index: number): 'default' | 'process' | 'finish' | 'error' {
     </TFooter>
   </TLayout>
   <PdfPreviewDialog />
+  <TDialog
+    v-model:visible="formatsVisible"
+    :header="t('formatFields')"
+    :footer="false"
+    width="min(720px, calc(100vw - 48px))"
+    placement="top"
+    top="24px"
+    destroy-on-close
+    ><FormatPanel v-if="formatsVisible" scope="fields"
+  /></TDialog>
   <TDialog v-model:visible="aboutVisible" :header="t('about')" :footer="false" width="420px">
     <p>Templify {{ desktopPackage.version }}</p>
     <p class="muted">{{ t('aboutDescription') }}</p>
     <TButton variant="text" @click="store.openDocumentation">{{ t('projectDocs') }} ↗</TButton>
   </TDialog>
-  <TDialog v-model:visible="settingsVisible" :header="t('settings')" :footer="false" width="440px">
+  <TDialog
+    v-model:visible="settingsVisible"
+    :header="t('settings')"
+    :footer="false"
+    width="min(720px, calc(100vw - 48px))"
+    placement="top"
+    top="24px"
+    destroy-on-close
+  >
     <label class="settings-language"
       >{{ t('language')
       }}<TSelect
@@ -196,6 +225,8 @@ function stepStatus(index: number): 'default' | 'process' | 'finish' | 'error' {
         @change="changeLanguage"
     /></label>
     <p class="muted">{{ t('settingsHint') }}</p>
+    <h3>{{ t('formatDefaults') }}</h3>
+    <FormatPanel v-if="settingsVisible" scope="defaults" />
     <TAlert v-if="preferences.error" theme="warning">{{ t(preferences.error) }}</TAlert>
   </TDialog>
 </template>

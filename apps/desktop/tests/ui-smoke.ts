@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
+import { SettingsStore } from '../src/main/settings';
 import { DocumentWorkflow } from '../src/main/document-workflow';
 import { createNodePdfConverter, type PdfFontData } from '@templify/node-output';
 import type { DesktopApi } from '../src/shared/desktop-api';
@@ -75,13 +76,24 @@ async function verify() {
     canceled: false,
     filePath: selectedOutput,
   });
+  const settingsStore = new SettingsStore(path.join(root, 'settings.json'), 'zh-CN');
+  await settingsStore.load();
   const handlers: Omit<DesktopApi, 'onPhase' | 'onFontRequest'> = {
-    getSettings: async () => ({ language: 'system', systemLocale: 'zh-CN' }),
-    setLanguage: async (language) => ({
-      status: 'ok',
-      value: { language, systemLocale: 'zh-CN' },
-      warnings: [],
-    }),
+    getSettings: async () => settingsStore.get(),
+    setLanguage: async (language) => {
+      await settingsStore.set(language);
+      return { status: 'ok', value: settingsStore.get(), warnings: [] };
+    },
+    setRenderDefaults: async (defaults) => {
+      await settingsStore.setRenderDefaults(defaults);
+      await workflow.invalidateOutput();
+      return { status: 'ok', value: settingsStore.get(), warnings: [] };
+    },
+    formatExamples: (options, perField) =>
+      workflow.formatExamples(
+        perField ? { ...options, defaults: settingsStore.get().renderDefaults ?? {} } : options,
+        perField,
+      ),
     selectTemplate: () => workflow.selectTemplate(window),
     importRecords: (options, reuse) => workflow.importRecords(window, options, reuse),
     exportExcel: () => workflow.exportExcel(window),
@@ -89,11 +101,19 @@ async function verify() {
     openDocumentation: () => workflow.openDocumentation(),
     validateRecords: (records) => workflow.validateRecords(records),
     selectOutput: (mode, format) => workflow.selectOutput(window, mode, format),
-    previewOutput: (records, settings) => workflow.previewOutput(records, settings),
+    previewOutput: (records, settings, options) =>
+      workflow.previewOutput(records, settings, {
+        ...options,
+        defaults: settingsStore.get().renderDefaults ?? {},
+      }),
     generate: (id) => workflow.generate(window, id),
     openOutput: () => workflow.openOutput(),
     openOutputFile: () => workflow.openOutputFile(),
-    previewPdf: (records, selection) => workflow.previewPdf(records, selection),
+    previewPdf: (records, selection, options) =>
+      workflow.previewPdf(records, selection, {
+        ...options,
+        defaults: settingsStore.get().renderDefaults ?? {},
+      }),
     resetInput: () => workflow.resetInput(),
     invalidateOutput: (preservePdf) => workflow.invalidateOutput(preservePdf),
     reset: () => workflow.reset(),
@@ -123,6 +143,11 @@ async function verify() {
       path.join(screenshots, `${name}.png`),
       (await window.webContents.capturePage()).toPNG(),
     );
+    if (name.startsWith('format-'))
+      await writeFile(
+        path.resolve('.desktop', `${name}.png`),
+        (await window.webContents.capturePage()).toPNG(),
+      );
     const dimensions = await evaluate<{ client: number; scroll: number }>(
       `({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth })`,
     );
@@ -203,6 +228,30 @@ async function verify() {
       1,
       'There must be one settings dialog',
     );
+    await evaluate(`document.querySelector('.format-entry input[type="checkbox"]').click()`);
+    await ready();
+    await evaluate(
+      `Array.from(document.querySelectorAll('.format-controls button')).find(button => button.textContent.includes('Yes / No')).click()`,
+    );
+    await ready();
+    assert.ok(
+      await evaluate(`document.querySelector('.format-example').textContent.includes('Yes / No')`),
+    );
+    await evaluate(`document.querySelector('.format-save button').click()`);
+    await ready();
+    assert.deepEqual(settingsStore.get().renderDefaults, {
+      boolean: { trueText: 'Yes', falseText: 'No' },
+    });
+    await screenshot('format-defaults-1600');
+    await resize(760, 580);
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.format-save button').getBoundingClientRect().bottom <= window.innerHeight`,
+      ),
+      'Formatting Apply button must remain visible',
+    );
+    await screenshot('format-defaults-760');
+    await resize(1600, 900);
     await evaluate(
       `Array.from(document.querySelectorAll('.t-dialog')).find(dialog => dialog.textContent.includes('界面语言')).querySelector('.t-dialog__close').click()`,
     );
@@ -227,6 +276,51 @@ async function verify() {
       ),
       'The About dialog must be closed',
     );
+    await evaluate(
+      `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '字段格式').click()`,
+    );
+    await ready();
+    assert.ok(
+      await evaluate(`document.querySelector('.format-panel').textContent.includes('Yes / No')`),
+    );
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.format-panel').textContent.includes('payments / value')`,
+      ),
+    );
+    await evaluate(
+      `Array.from(document.querySelectorAll('.format-entry')).find(entry => entry.querySelector('strong').textContent === 'enabled').querySelector('input[type="checkbox"]').click()`,
+    );
+    await ready();
+    await evaluate(
+      `Array.from(document.querySelectorAll('.format-controls button')).find(button => button.textContent.includes('是 / 否')).click()`,
+    );
+    await ready();
+    await evaluate(`document.querySelector('.format-save button').click()`);
+    await ready();
+    assert.ok(
+      await evaluate(`testStore.formats.some(rule => rule.path[0] === 'amount') === false`),
+    );
+    assert.ok(
+      await evaluate(
+        `testStore.formats.some(rule => rule.format.type === 'boolean' && rule.format.trueText === '是')`,
+      ),
+    );
+    await screenshot('format-fields-1600');
+    await resize(760, 580);
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.format-save button').getBoundingClientRect().bottom <= window.innerHeight`,
+      ),
+      'Formatting Apply button must remain visible',
+    );
+    await screenshot('format-fields-760');
+    await resize(1600, 900);
+    await evaluate(`testStore.setFormats([])`); // Restore application defaults for the Latin-only PDF fixture.
+    await evaluate(
+      `document.querySelector('.format-panel').closest('.t-dialog').querySelector('.t-dialog__close').click()`,
+    );
+    await ready();
     await screenshot('manual-1600');
     const proportions = await evaluate<{ left: number; right: number }>(
       `({ left: document.querySelector('.record-column').getBoundingClientRect().width, right: document.querySelector('.form-column').getBoundingClientRect().width })`,
@@ -293,7 +387,11 @@ async function verify() {
     assert.equal(await evaluate(`testStore.count`), 2);
     selectedOutput = path.join(root, 'input-template.xlsx');
     await evaluate(`testStore.exportExcel()`);
-    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(
+      await evaluate(`testStore.issues.length`),
+      0,
+      await evaluate(`JSON.stringify(testStore.issues)`),
+    );
     await evaluate(`testStore.openExcelTemplate()`);
     assert.equal(openedFile, selectedOutput);
     await evaluate(`window.scrollTo(0, 0)`);
@@ -301,7 +399,11 @@ async function verify() {
     openError = 'Application not found';
     await evaluate(`testStore.openExcelTemplate()`);
     await ready();
-    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(
+      await evaluate(`testStore.issues.length`),
+      0,
+      await evaluate(`JSON.stringify(testStore.issues)`),
+    );
     assert.ok(await evaluate(`document.body.textContent.includes('无法打开文件')`));
     await screenshot('open-error-760');
     await evaluate(`document.querySelector('.t-notification .t-message__close').click()`);
@@ -376,7 +478,11 @@ async function verify() {
         inspect();
       });
     })()`);
-    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(
+      await evaluate(`testStore.issues.length`),
+      0,
+      await evaluate(`JSON.stringify(testStore.issues)`),
+    );
     assert.ok(
       localFontCount > 0,
       'Real Chromium Local Font Access must transfer requested font bytes',
@@ -405,7 +511,11 @@ async function verify() {
       ),
       false,
     );
-    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(
+      await evaluate(`testStore.issues.length`),
+      0,
+      await evaluate(`JSON.stringify(testStore.issues)`),
+    );
     assert.equal(await evaluate(`document.querySelectorAll('.diagnostics .diagnostic').length`), 0);
     await screenshot('pdf-controls-1600');
     await writeFile(
@@ -427,7 +537,11 @@ async function verify() {
     await evaluate(
       `(async () => { await testStore.chooseOutput(); await testStore.generate(); })()`,
     );
-    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(
+      await evaluate(`testStore.issues.length`),
+      0,
+      await evaluate(`JSON.stringify(testStore.issues)`),
+    );
     assert.equal(await evaluate(`testStore.generated.documentCount`), 2);
     assert.deepEqual(errors, []);
     await writeFile(path.resolve('.desktop/qa/result.json'), JSON.stringify({ passed: true }));

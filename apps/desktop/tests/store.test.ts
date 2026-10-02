@@ -63,6 +63,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('generation task state', () => {
+  it('passes field rules to preview and export, invalidates old previews, and clears rules on template replacement', async () => {
+    const store = useGenerationStore();
+    await store.chooseTemplate();
+    const rules = [
+      {
+        path: ['enabled'] as const,
+        format: { type: 'boolean' as const, trueText: 'Yes', falseText: 'No' },
+      },
+    ];
+    store.pdfPreviewId = 4;
+    store.setFormats(rules);
+    expect(store.pdfPreviewId).toBeUndefined();
+    expect(api.invalidateOutput).toHaveBeenCalledWith(false);
+    api.previewPdf.mockResolvedValue({ status: 'cancelled' });
+    await store.previewPdf(0);
+    expect(api.previewPdf.mock.calls.at(-1)?.[2]).toEqual({ formats: rules });
+    api.previewOutput.mockResolvedValue({ status: 'cancelled' });
+    await store.planOutput();
+    expect(api.previewOutput.mock.calls.at(-1)?.[2]).toEqual({ formats: rules });
+    await store.chooseTemplate();
+    expect(store.formats).toEqual([]);
+  });
   it('opens a PDF from IPC bytes and releases its object URL when data changes', async () => {
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-pdf');
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);

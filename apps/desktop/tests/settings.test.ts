@@ -14,6 +14,36 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 describe('language preferences', () => {
+  it('persists type defaults across restarts and language changes, while rejecting invalid formats', async () => {
+    const store = new SettingsStore(filePath, 'zh-CN');
+    await store.load();
+    const defaults = {
+      boolean: { trueText: '是', falseText: '否' },
+      date: { pattern: 'YYYY年MM月DD日' },
+    };
+    await Promise.all([store.setRenderDefaults(defaults), store.set('en-US')]);
+    const restarted = new SettingsStore(filePath, 'zh-CN');
+    await restarted.load();
+    expect(restarted.get().renderDefaults).toEqual(defaults);
+    expect(restarted.locale).toBe('en-US');
+    await expect(store.setRenderDefaults({ datetime: { timeZone: 'bad' } })).rejects.toThrow(
+      'Invalid render defaults.',
+    );
+    expect(store.get().renderDefaults).toEqual(defaults);
+    await store.setRenderDefaults({});
+    const cleared = new SettingsStore(filePath, 'zh-CN');
+    await cleared.load();
+    expect(cleared.get().renderDefaults).toBeUndefined();
+  });
+  it('loads old language-only settings and ignores invalid type defaults without losing language', async () => {
+    await writeFile(
+      filePath,
+      JSON.stringify({ language: 'en-US', renderDefaults: { boolean: {} } }),
+    );
+    const store = new SettingsStore(filePath, 'zh-CN');
+    await store.load();
+    expect(store.get()).toEqual({ language: 'en-US', systemLocale: 'zh-CN' });
+  });
   it('follows the system without creating a file until the user chooses a preference', async () => {
     const store = new SettingsStore(filePath, systemLocale(['zh-Hans-CN', 'en-US']));
     await store.load();

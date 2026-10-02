@@ -58,6 +58,58 @@ try {
   await writeFile(template, createDocx([['Hello {name}!']]));
 
   assert.match(run(process.execPath, [bin, '--help']).stdout, /inspect/u);
+  const formatTemplate = path.join(temp, 'format-template.docx');
+  const formatConfig = path.join(temp, 'render-options.json');
+  const formatOutput = path.join(temp, 'formatted.docx');
+  await writeFile(
+    formatTemplate,
+    createDocx([['{enabled:boolean} {approved:boolean} {amount:number}']]),
+  );
+  await writeFile(
+    formatConfig,
+    JSON.stringify({
+      defaults: {
+        boolean: { trueText: 'Yes', falseText: 'No' },
+        number: { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 },
+      },
+      formats: [
+        { path: ['approved'], format: { type: 'boolean', trueText: 'Pass', falseText: 'Fail' } },
+      ],
+    }),
+  );
+  const formatArgs = [
+    bin,
+    'generate',
+    formatTemplate,
+    '--set',
+    'enabled=true',
+    '--set',
+    'approved=false',
+    '--set',
+    'amount=12',
+    '--render-options',
+    formatConfig,
+    '--output-file',
+    formatOutput,
+  ];
+  run(process.execPath, formatArgs);
+  const formattedXml = new PizZip(await readFile(formatOutput)).file('word/document.xml').asText();
+  assert.ok(formattedXml.includes('Yes Fail 12.00'));
+  await writeFile(formatConfig, '{invalid');
+  const invalidJson = run(process.execPath, [...formatArgs, '--overwrite'], cliRoot, 2);
+  assert.match(invalidJson.stderr, /Unable to read --render-options JSON/u);
+  await writeFile(
+    formatConfig,
+    JSON.stringify({
+      defaults: { number: { minimumFractionDigits: 4, maximumFractionDigits: 1 } },
+    }),
+  );
+  run(process.execPath, [...formatArgs, '--overwrite'], cliRoot, 1);
+  assert.equal(
+    new PizZip(await readFile(formatOutput)).file('word/document.xml').asText(),
+    formattedXml,
+  );
+
   const tableTemplate = path.join(temp, 'table-template.docx');
   await writeFile(tableTemplate, createDocx([['{名字:string} {部门:option["研发","Sales"]}']]));
   const tableOutput = run(process.execPath, [bin, 'inspect', tableTemplate]);

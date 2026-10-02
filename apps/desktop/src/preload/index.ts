@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopApi } from '../shared/desktop-api';
 
 const api: DesktopApi = {
+  formatExamples: (options, perField) =>
+    ipcRenderer.invoke('templify:formatExamples', options, perField),
+  setRenderDefaults: (defaults) => ipcRenderer.invoke('templify:setRenderDefaults', defaults),
   getSettings: () => ipcRenderer.invoke('templify:getSettings'),
   setLanguage: (language) => ipcRenderer.invoke('templify:setLanguage', language),
   selectTemplate: () => ipcRenderer.invoke('templify:selectTemplate'),
@@ -11,12 +14,13 @@ const api: DesktopApi = {
   openDocumentation: () => ipcRenderer.invoke('templify:openDocumentation'),
   validateRecords: (records) => ipcRenderer.invoke('templify:validateRecords', records),
   selectOutput: (mode, format) => ipcRenderer.invoke('templify:selectOutput', mode, format),
-  previewOutput: (records, settings) =>
-    ipcRenderer.invoke('templify:previewOutput', records, settings),
+  previewOutput: (records, settings, options) =>
+    ipcRenderer.invoke('templify:previewOutput', records, settings, options),
   generate: (id) => ipcRenderer.invoke('templify:generate', id),
   openOutput: () => ipcRenderer.invoke('templify:openOutput'),
   openOutputFile: () => ipcRenderer.invoke('templify:openOutputFile'),
-  previewPdf: (records, selection) => ipcRenderer.invoke('templify:previewPdf', records, selection),
+  previewPdf: (records, selection, options) =>
+    ipcRenderer.invoke('templify:previewPdf', records, selection, options),
   onFontRequest: (callback) => {
     const listener = async (
       _event: Electron.IpcRendererEvent,

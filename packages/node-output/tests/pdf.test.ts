@@ -4,8 +4,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Ream } from 'reamkit';
 import { createDocx } from '../../core/tests/docx-fixture';
-import { createRemoteFontCache } from '../src/pdf/font-cache';
-import { createNodePdfConverter } from '../src/pdf/node-pdf-converter';
+import { createRemoteFontCache } from '@/pdf/font-cache';
+import { createNodePdfConverter } from '@/pdf/node-pdf-converter';
 
 const font = new Uint8Array(
   await readFile(new URL('./fixtures/arimo-regular.ttf', import.meta.url)),

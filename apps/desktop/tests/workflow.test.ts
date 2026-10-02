@@ -72,6 +72,53 @@ afterEach(async () => {
 });
 
 describe('desktop batch workflow', () => {
+  it('uses the same formatting for examples, PDF previews, and exported DOCX', async () => {
+    const font = new Uint8Array(
+      await readFile(
+        new URL('../../../packages/node-output/tests/fixtures/arimo-regular.ttf', import.meta.url),
+      ),
+    );
+    workflow = new DocumentWorkflow(() => 'en-US', {
+      pdfConverter: createNodePdfConverter({
+        localFonts: async (requests) => requests.map((request) => ({ ...request, bytes: font })),
+      }),
+    });
+    value(await select(createDocx([['{enabled:boolean} {approved:boolean} {amount:number}']])));
+    const options = {
+      defaults: {
+        boolean: { trueText: 'Yes', falseText: 'No' },
+        number: { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false },
+      },
+      formats: [
+        {
+          path: ['approved'] as const,
+          format: { type: 'boolean' as const, trueText: 'Pass', falseText: 'Fail' },
+        },
+      ],
+    };
+    expect(value(await workflow.formatExamples(options, true))).toContainEqual({
+      path: ['approved'],
+      text: 'Pass / Fail',
+    });
+    const records = [{ enabled: true, approved: false, amount: 12 }];
+    const preview = value(await workflow.previewPdf(records, 0, options));
+    expect(readPdfText(preview.bytes)).toContain('Yes Fail 12.00');
+    const destination = path.join(root, 'formatted.docx');
+    const planned = value(
+      await workflow.previewOutput(
+        records,
+        { mode: 'single', destination, pathTemplate: 'formatted.docx' },
+        options,
+      ),
+    );
+    value(await workflow.generate(window, planned.id));
+    expect(readArchive(await readFile(destination))['word/document.xml']!.toString()).toContain(
+      'Yes Fail 12.00',
+    );
+    expect(
+      await workflow.formatExamples({ defaults: { date: { pattern: 'invalid' } } }, false),
+    ).toMatchObject({ status: 'error', issue: { code: 'InvalidRenderOptions' } });
+  });
   it('previews selected/all records before export and reuses PDF conversion for ordered merged output', async () => {
     const font = new Uint8Array(
       await readFile(

@@ -45,8 +45,16 @@ export interface FieldFormatRule {
 }
 
 export interface RenderOptions {
+  readonly defaults?: RenderDefaults;
   readonly locale?: RenderLocale;
   /** Uses the runtime's system time zone when omitted. */
   readonly timeZone?: string;
   readonly formats?: readonly FieldFormatRule[];
+}
+
+export interface RenderDefaults {
+  readonly date?: Omit<DateFieldFormat, 'type'>;
+  readonly datetime?: Omit<DateTimeFieldFormat, 'type'>;
+  readonly number?: Omit<NumberFieldFormat, 'type'>;
+  readonly boolean?: Omit<BooleanFieldFormat, 'type'>;
 }

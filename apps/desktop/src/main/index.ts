@@ -125,10 +125,25 @@ app.whenReady().then(async () => {
       ...args: Parameters<DesktopApi[K]>
     ) => ReturnType<DesktopApi[K]>;
   } = {
+    formatExamples: (_window, options, perField) =>
+      workflow.formatExamples(
+        perField ? { ...options, defaults: appSettings.get().renderDefaults ?? {} } : options,
+        perField,
+      ),
     getSettings: async () => appSettings.get(),
     setLanguage: async (_window, language) => {
       try {
         await appSettings.set(language);
+        return { status: 'ok', value: appSettings.get(), warnings: [] };
+      } catch {
+        const issue = diagnostic('settings', { code: 'SettingsSaveFailed' });
+        return { status: 'error', issue, issues: [issue], warnings: [] };
+      }
+    },
+    setRenderDefaults: async (_window, defaults) => {
+      try {
+        await appSettings.setRenderDefaults(defaults);
+        await workflow.invalidateOutput();
         return { status: 'ok', value: appSettings.get(), warnings: [] };
       } catch {
         const issue = diagnostic('settings', { code: 'SettingsSaveFailed' });
@@ -142,11 +157,19 @@ app.whenReady().then(async () => {
     openDocumentation: () => workflow.openDocumentation(),
     validateRecords: (_window, records) => workflow.validateRecords(records),
     selectOutput: (window, mode, format) => workflow.selectOutput(window, mode, format),
-    previewOutput: (_window, records, settings) => workflow.previewOutput(records, settings),
+    previewOutput: (_window, records, settings, options) =>
+      workflow.previewOutput(records, settings, {
+        ...options,
+        defaults: appSettings.get().renderDefaults ?? {},
+      }),
     generate: (window, id) => workflow.generate(window, id),
     openOutput: () => workflow.openOutput(),
     openOutputFile: () => workflow.openOutputFile(),
-    previewPdf: (_window, records, selection) => workflow.previewPdf(records, selection),
+    previewPdf: (_window, records, selection, options) =>
+      workflow.previewPdf(records, selection, {
+        ...options,
+        defaults: appSettings.get().renderDefaults ?? {},
+      }),
     resetInput: () => workflow.resetInput(),
     invalidateOutput: (_window, preservePdf) => workflow.invalidateOutput(preservePdf),
     reset: () => workflow.reset(),

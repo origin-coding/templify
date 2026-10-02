@@ -1,4 +1,10 @@
-import type { RecordData, RecordOrigin, TemplateDefinition } from '@templify/core';
+import type {
+  RecordData,
+  RecordOrigin,
+  TemplateDefinition,
+  RenderDefaults,
+  RenderOptions,
+} from '@templify/core';
 import type { AppSettings, LanguagePreference } from './settings';
 import type { PdfFontData, PdfFontRequest } from '@templify/node-output';
 
@@ -63,7 +69,12 @@ export interface PdfPreview {
   readonly bytes: Uint8Array;
 }
 export interface DesktopApi {
+  formatExamples(
+    options: RenderOptions,
+    perField: boolean,
+  ): Promise<DesktopResult<readonly { path: readonly string[]; text: string }[]>>;
   getSettings(): Promise<AppSettings>;
+  setRenderDefaults(defaults: RenderDefaults): Promise<DesktopResult<AppSettings>>;
   setLanguage(language: LanguagePreference): Promise<DesktopResult<AppSettings>>;
   onPhase(callback: (phase: string) => void): () => void;
   selectTemplate(): Promise<DesktopResult<InspectedTemplate>>;
@@ -78,6 +89,7 @@ export interface DesktopApi {
   previewOutput(
     records: readonly Readonly<Record<string, unknown>>[] | null,
     settings: OutputSettings,
+    renderOptions?: RenderOptions,
   ): Promise<DesktopResult<OutputPreview>>;
   generate(previewId: number): Promise<DesktopResult<GeneratedDocuments>>;
   openOutput(): Promise<DesktopResult<boolean>>;
@@ -85,6 +97,7 @@ export interface DesktopApi {
   previewPdf(
     records: readonly Readonly<Record<string, unknown>>[] | null,
     selection: number | 'all',
+    renderOptions?: RenderOptions,
   ): Promise<DesktopResult<PdfPreview>>;
   onFontRequest(
     callback: (requests: readonly PdfFontRequest[]) => Promise<readonly PdfFontData[]>,

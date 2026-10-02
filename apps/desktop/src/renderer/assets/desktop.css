@@ -335,3 +335,51 @@ fieldset {
     margin-bottom: 20px;
   }
 }
+
+.format-entries {
+  max-height: calc(100vh - 240px);
+  overflow: auto;
+  padding-right: 12px;
+}
+.format-panel--defaults .format-entries {
+  max-height: calc(100vh - 400px);
+}
+.format-entry {
+  border-top: 1px solid var(--td-component-stroke);
+  padding: 16px 0;
+}
+.format-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.format-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.format-controls .toolbar {
+  grid-column: 1 / -1;
+}
+.format-controls .t-input-number {
+  width: 100%;
+}
+.format-example {
+  overflow-wrap: anywhere;
+}
+.format-save {
+  position: sticky;
+  bottom: 0;
+  background: var(--td-bg-color-container);
+  padding: 12px 0;
+}
+.format-task-entry {
+  margin-bottom: 16px;
+}
+@media (max-width: 600px) {
+  .format-controls {
+    grid-template-columns: 1fr;
+  }
+}

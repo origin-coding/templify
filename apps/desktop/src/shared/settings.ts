@@ -1,6 +1,8 @@
+import type { RenderDefaults } from '@templify/core';
 export type LanguagePreference = 'system' | 'zh-CN' | 'en-US';
 export type AppLocale = 'zh-CN' | 'en-US';
 export interface AppSettings {
+  readonly renderDefaults?: RenderDefaults;
   readonly language: LanguagePreference;
   readonly systemLocale: AppLocale;
 }

@@ -1,3 +1,4 @@
+export { createFieldValueFormatter } from './field-value-formatter';
 export { validateRenderOptions } from './validate-render-options';
 export type { ValidateRenderOptionsResult } from './validate-render-options';
 export type { DocumentRenderError, RenderOptionsError } from './rendering-diagnostics';
@@ -11,6 +12,7 @@ export type {
   NumberFieldFormat,
   RenderLocale,
   RenderOptions,
+  RenderDefaults,
 } from './render-options';
 export type {
   ValidatedFieldFormat,

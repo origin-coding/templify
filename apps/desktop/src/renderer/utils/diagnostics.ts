@@ -3,7 +3,10 @@ import { zh, type MessageKey } from '../../shared/messages';
 import type { DesktopIssue } from '../../shared/desktop-api';
 export function issueLocation(issue: DesktopIssue) {
   const data = issue.data ?? {};
-  const loc = (data.location ?? data) as Record<string, unknown>;
+  const loc = (data.location ?? (data.fieldPath ? { path: data.fieldPath } : data)) as Record<
+    string,
+    unknown
+  >;
   const path = Array.isArray(loc.path)
     ? loc.path.join(' / ')
     : (loc.path ?? data.fieldName ?? data.relativePath ?? data.resultingPath);

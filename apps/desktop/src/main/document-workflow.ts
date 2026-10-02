@@ -5,6 +5,11 @@ import { en, zh, type MessageKey } from '../shared/messages';
 import type { AppLocale } from '../shared/settings';
 import { dialog, shell, type BrowserWindow } from 'electron';
 import {
+  createFieldValueFormatter,
+  validateRenderOptions,
+  type ScalarFieldDefinition,
+  type FieldPath,
+  type TemplateDefinition,
   derivePublicationManifest,
   deriveUnbundledManifestItems,
   generateArtifacts,
@@ -13,6 +18,7 @@ import {
   prepareGeneration,
   prepareTemplate,
   type Generation,
+  type RenderOptions,
   type PreparedTemplate,
   type RawInputBatch,
   type StageResult,
@@ -367,6 +373,7 @@ export class DocumentWorkflow {
   previewOutput(
     records: readonly Readonly<Record<string, unknown>>[] | null,
     settings: OutputSettings,
+    renderOptions: RenderOptions = {},
   ): Promise<DesktopResult<OutputPreview>> {
     return this.run(async (warnings) => {
       this.clearOutput(false);
@@ -409,6 +416,7 @@ export class DocumentWorkflow {
       if (settings.mode !== 'single') requireExtension(pathTemplate, extension);
       const prepared = prepareGeneration({
         template: template.prepared,
+        renderOptions,
         input: this.batch(records),
         request: {
           documentOutputs: format,
@@ -555,6 +563,7 @@ export class DocumentWorkflow {
   previewPdf(
     records: readonly Readonly<Record<string, unknown>>[] | null,
     selection: number | 'all',
+    renderOptions: RenderOptions = {},
   ): Promise<DesktopResult<PdfPreview>> {
     return this.run(async (warnings) => {
       const template = this.requireTemplate();
@@ -570,6 +579,7 @@ export class DocumentWorkflow {
         throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
       const prepared = prepareGeneration({
         template: template.prepared,
+        renderOptions,
         input: {
           kind: 'object-rows',
           rows: selection === 'all' ? batch.records : [batch.records[selection]!],
@@ -597,6 +607,53 @@ export class DocumentWorkflow {
       if (!artifact)
         throw new WorkflowFailure([diagnostic('pdf-preview', { code: 'PdfPreviewFailed' })]);
       return { id: ++this.sequence, bytes: artifact.bytes };
+    });
+  }
+  formatExamples(
+    options: RenderOptions,
+    perField: boolean,
+  ): Promise<DesktopResult<readonly { path: readonly string[]; text: string }[]>> {
+    return this.run(async () => {
+      const definition: TemplateDefinition = perField
+        ? this.requireTemplate().prepared.definition
+        : {
+            version: 1,
+            kind: 'docx',
+            fields: ['boolean', 'date', 'datetime', 'number'].map((type) => ({
+              kind: 'scalar',
+              name: type,
+              hint: { type },
+            })) as ScalarFieldDefinition[],
+          };
+      const validation = validateRenderOptions(definition, options);
+      if (!validation.ok)
+        throw new WorkflowFailure(
+          validation.errors.map((issue) => diagnostic('render-options', issue)),
+        );
+      const validated = validation.value;
+      const formatter = createFieldValueFormatter(validated);
+      const leaves = definition.fields.flatMap((field) =>
+        field.kind === 'scalar'
+          ? [{ field, path: [field.name] as FieldPath }]
+          : field.fields.map((child) => ({
+              field: child,
+              path: [field.name, child.name] as FieldPath,
+            })),
+      );
+      return leaves
+        .filter(({ field }) => ['boolean', 'date', 'datetime', 'number'].includes(field.hint.type))
+        .map(({ field, path: fieldPath }) => {
+          const values =
+            field.hint.type === 'boolean'
+              ? [true, false]
+              : field.hint.type === 'number'
+                ? [12345.678]
+                : [new Date('2026-01-02T03:04:05Z')];
+          return {
+            path: fieldPath,
+            text: values.map((value) => formatter.format(field, value, fieldPath)).join(' / '),
+          };
+        });
     });
   }
   private cachedConverter(): PdfConverter {
@@ -639,7 +696,7 @@ export class DocumentWorkflow {
   }
   invalidateOutput(preservePdf = false): Promise<DesktopResult<boolean>> {
     return this.run(async () => {
-      this.clearOutput(preservePdf !== true);
+      this.clearOutput(!preservePdf);
       return true;
     });
   }
