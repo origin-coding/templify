@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { DocumentWorkflow } from '../src/main/document-workflow';
+import { createNodePdfConverter, type PdfFontData } from '@templify/node-output';
 import type { DesktopApi } from '../src/shared/desktop-api';
 import { createDocx } from '../../../packages/core/tests/docx-fixture';
 import { createXlsx } from '../../../packages/tabular-input/tests/xlsx-fixture';
@@ -22,7 +23,6 @@ async function verify() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'templify-ui-'));
   const screenshots = path.resolve('.desktop/qa/screenshots');
   await mkdir(screenshots, { recursive: true });
-  const workflow = new DocumentWorkflow();
   const window = new BrowserWindow({
     show: false,
     width: 1100,
@@ -34,6 +34,33 @@ async function verify() {
       sandbox: true,
       backgroundThrottling: false,
     },
+  });
+  window.webContents.session.setPermissionCheckHandler(
+    (_sender, permission) => String(permission) === 'local-fonts',
+  );
+  window.webContents.session.setPermissionRequestHandler((_sender, permission, callback) =>
+    callback(String(permission) === 'local-fonts'),
+  );
+  let fontResponse: ((fonts: readonly PdfFontData[]) => void) | undefined;
+  let localFontCount = 0;
+  ipcMain.on('templify:fontResponse', (_event, _id, fonts: readonly PdfFontData[]) => {
+    localFontCount += fonts.length;
+    fontResponse?.(fonts);
+    fontResponse = undefined;
+  });
+  const testFont = new Uint8Array(
+    await readFile(path.resolve('../../packages/node-output/tests/fixtures/arimo-regular.ttf')),
+  );
+  const workflow = new DocumentWorkflow(() => 'zh-CN', {
+    pdfConverter: createNodePdfConverter({
+      cacheDirectory: path.join(root, 'fonts'),
+      fetchFont: async () => testFont,
+      localFonts: (requests) =>
+        new Promise((resolve) => {
+          fontResponse = resolve;
+          window.webContents.send('templify:fontRequest', 1, requests);
+        }),
+    }),
   });
   let selectedFile = path.join(root, 'template.docx');
   let selectedOutput = path.join(root, 'output.zip');
@@ -48,7 +75,7 @@ async function verify() {
     canceled: false,
     filePath: selectedOutput,
   });
-  const handlers: Omit<DesktopApi, 'onPhase'> = {
+  const handlers: Omit<DesktopApi, 'onPhase' | 'onFontRequest'> = {
     getSettings: async () => ({ language: 'system', systemLocale: 'zh-CN' }),
     setLanguage: async (language) => ({
       status: 'ok',
@@ -61,12 +88,14 @@ async function verify() {
     openExcelTemplate: () => workflow.openExcelTemplate(),
     openDocumentation: () => workflow.openDocumentation(),
     validateRecords: (records) => workflow.validateRecords(records),
-    selectOutput: (mode) => workflow.selectOutput(window, mode),
+    selectOutput: (mode, format) => workflow.selectOutput(window, mode, format),
     previewOutput: (records, settings) => workflow.previewOutput(records, settings),
     generate: (id) => workflow.generate(window, id),
     openOutput: () => workflow.openOutput(),
+    openOutputFile: () => workflow.openOutputFile(),
+    previewPdf: (records, selection) => workflow.previewPdf(records, selection),
     resetInput: () => workflow.resetInput(),
-    invalidateOutput: () => workflow.invalidateOutput(),
+    invalidateOutput: (preservePdf) => workflow.invalidateOutput(preservePdf),
     reset: () => workflow.reset(),
   };
   for (const [name, handler] of Object.entries(handlers)) {
@@ -79,7 +108,7 @@ async function verify() {
     if (details.level === 'error') errors.push(details.message);
   });
   async function evaluate<T>(script: string): Promise<T> {
-    return window.webContents.executeJavaScript(script);
+    return window.webContents.executeJavaScript(script, true);
   }
   async function ready() {
     await evaluate(`new Promise(resolve => setTimeout(resolve, 100))`);
@@ -311,7 +340,7 @@ async function verify() {
     await evaluate(`testPrefs.setLanguage('en-US')`);
     await ready();
     assert.ok(
-      await evaluate(`document.body.textContent.includes('ZIP generated with 2 DOCX documents.')`),
+      await evaluate(`document.body.textContent.includes('ZIP generated with 2 documents')`),
     );
     assert.ok(
       await evaluate(
@@ -319,10 +348,91 @@ async function verify() {
       ),
     );
     await screenshot('result-en-1600');
+    await evaluate(`testPrefs.setLanguage('zh-CN')`);
+    // Preview must work with network access disabled: PDF bytes and WASM are local.
+    window.webContents.session.webRequest.onBeforeRequest(
+      { urls: ['http://*/*', 'https://*/*'] },
+      (_details, callback) => callback({ cancel: true }),
+    );
+    await evaluate(`testStore.go(1)`);
+    await ready();
+    assert.ok(
+      await evaluate(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('预览全部记录'));
+        const table = document.querySelector('.preview-table');
+        return !!button && !!table && !button.closest('tbody') && !!(button.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING);
+      })()`),
+      'All-record preview belongs above the imported table',
+    );
+    await evaluate(`(() => {
+      Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('预览全部记录')).click();
+      return new Promise((resolve, reject) => {
+        const deadline = Date.now() + 20000;
+        function inspect() {
+          if (!testStore.busy) return resolve(true);
+          if (Date.now() > deadline) return reject(new Error('PDF preview did not finish'));
+          setTimeout(inspect, 100);
+        }
+        inspect();
+      });
+    })()`);
+    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.ok(
+      localFontCount > 0,
+      'Real Chromium Local Font Access must transfer requested font bytes',
+    );
+    assert.deepEqual(BrowserWindow.getAllWindows(), [window], 'Preview needs no native PDF window');
+    await evaluate(`new Promise((resolve, reject) => {
+      const deadline = Date.now() + 20000;
+      function inspect() {
+        const root = document.querySelector('embedpdf-container')?.shadowRoot;
+        const canvas = root?.querySelector('canvas');
+        const image = root?.querySelector('img[src^="blob:"]');
+        if ((canvas && canvas.width > 0 && canvas.height > 0) || (image && image.naturalWidth > 0)) return resolve(true);
+        if (Date.now() > deadline) return reject(new Error('EmbedPDF did not render a PDF page'));
+        setTimeout(inspect, 100);
+      }
+      inspect();
+    })`);
+    await writeFile(
+      path.resolve('.desktop/pdf-preview-qa.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    assert.equal(await evaluate(`'printPdf' in window.templify`), false);
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.pdf-preview-dialog').textContent.includes('打印当前预览')`,
+      ),
+      false,
+    );
+    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(await evaluate(`document.querySelectorAll('.diagnostics .diagnostic').length`), 0);
+    await screenshot('pdf-controls-1600');
+    await writeFile(
+      path.resolve('.desktop/pdf-controls-qa.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    await resize(760, 580);
+    await screenshot('pdf-controls-760');
+    await evaluate(`testStore.pdfPreviewOpen = false`);
+    await ready();
+    await screenshot('record-preview-actions-760');
+    await evaluate(`testStore.go(2)`);
+    await evaluate(
+      `testStore.updateOutput({ documentFormat: 'pdf', mode: 'zip', destination: '', mergedPdf: 'merged.pdf' })`,
+    );
+    assert.equal(await evaluate(`testStore.output.pathTemplate`), '{name}.pdf');
+    assert.equal(typeof (await evaluate(`testStore.pdfPreviewId`)), 'number');
+    selectedOutput = path.join(root, 'pdf-batch.zip');
+    await evaluate(
+      `(async () => { await testStore.chooseOutput(); await testStore.generate(); })()`,
+    );
+    assert.equal(await evaluate(`testStore.issues.length`), 0);
+    assert.equal(await evaluate(`testStore.generated.documentCount`), 2);
     assert.deepEqual(errors, []);
     await writeFile(path.resolve('.desktop/qa/result.json'), JSON.stringify({ passed: true }));
     console.log(
-      `UI smoke passed: bilingual UI, 1:3 layout, help, export/open feedback, manual form, collection tabs/paging, ZIP generation; 1600×900, 1100×780 and 760×580.`,
+      `UI smoke passed: bilingual UI, manual/file input, DOCX and PDF ZIP generation, Chromium local fonts and offline EmbedPDF rendering without a native PDF window; 1600×900, 1100×780 and 760×580.`,
     );
   } catch (cause) {
     console.error(cause);

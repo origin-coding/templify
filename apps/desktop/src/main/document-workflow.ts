@@ -1,10 +1,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { en, zh, type MessageKey } from '../shared/messages';
 import type { AppLocale } from '../shared/settings';
 import { dialog, shell, type BrowserWindow } from 'electron';
 import {
   derivePublicationManifest,
+  deriveUnbundledManifestItems,
   generateArtifacts,
   normalizeRecords,
   packageArtifacts,
@@ -14,12 +16,15 @@ import {
   type PreparedTemplate,
   type RawInputBatch,
   type StageResult,
+  type PdfConverter,
+  type PdfConversionResult,
 } from '@templify/core';
 import {
   createPublicationPlan,
   preflightPublication,
   publishArtifacts,
   type PreflightedPublication,
+  createNodePdfConverter,
 } from '@templify/node-output';
 import {
   createXlsxTemplate,
@@ -39,6 +44,7 @@ import type {
   OutputMode,
   OutputPreview,
   OutputSettings,
+  PdfPreview,
 } from '../shared/desktop-api';
 
 class WorkflowFailure extends Error {
@@ -64,8 +70,14 @@ export function diagnostic(stage: string, issue: unknown): DesktopIssue {
 /** One in-memory task; prepared templates and raw file input stay in the main process. */
 export class DocumentWorkflow {
   private readonly locale: () => AppLocale;
-  constructor(locale: () => AppLocale = () => 'zh-CN') {
+  private readonly converter: PdfConverter;
+  private readonly pdfCache = new Map<string, PdfConversionResult>();
+  constructor(
+    locale: () => AppLocale = () => 'zh-CN',
+    dependencies: { pdfConverter?: PdfConverter } = {},
+  ) {
     this.locale = locale;
+    this.converter = dependencies.pdfConverter ?? createNodePdfConverter();
   }
   private text(key: MessageKey, values: Record<string, string | number> = {}): string {
     const message = (this.locale() === 'zh-CN' ? zh : en)[key];
@@ -139,9 +151,12 @@ export class DocumentWorkflow {
       throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
     return { kind: 'object-rows', rows: records };
   }
-  private clearOutput() {
+  private clearOutput(clearPdf = true) {
     this.preview = undefined;
     this.completed = undefined;
+    if (clearPdf) {
+      this.pdfCache.clear();
+    }
   }
   private clearInput() {
     this.input = undefined;
@@ -310,10 +325,15 @@ export class DocumentWorkflow {
       ).records.length;
     });
   }
-  selectOutput(window: BrowserWindow, mode: OutputMode): Promise<DesktopResult<string>> {
+  selectOutput(
+    window: BrowserWindow,
+    mode: OutputMode,
+    format: 'docx' | 'pdf' = 'docx',
+  ): Promise<DesktopResult<string>> {
     return this.run(async () => {
       this.requireTemplate();
       requireMode(mode);
+      requireFormat(format);
       if (mode === 'directory') {
         const result = await dialog.showOpenDialog(window, {
           title: this.text('outputDirectoryTitle'),
@@ -321,12 +341,17 @@ export class DocumentWorkflow {
         });
         return result.canceled ? undefined : result.filePaths[0];
       }
-      const extension = mode === 'zip' ? '.zip' : '.docx';
+      const extension = mode === 'zip' ? '.zip' : `.${format}`;
       const result = await dialog.showSaveDialog(window, {
         title: this.text('outputTitle'),
         properties: ['showOverwriteConfirmation'],
         defaultPath: `documents${extension}`,
-        filters: [{ name: mode === 'zip' ? 'ZIP' : 'Word', extensions: [extension.slice(1)] }],
+        filters: [
+          {
+            name: mode === 'zip' ? 'ZIP' : format === 'pdf' ? 'PDF' : 'Word',
+            extensions: [extension.slice(1)],
+          },
+        ],
       });
       if (result.canceled || !result.filePath) return;
       requireExtension(result.filePath, extension);
@@ -344,7 +369,7 @@ export class DocumentWorkflow {
     settings: OutputSettings,
   ): Promise<DesktopResult<OutputPreview>> {
     return this.run(async (warnings) => {
-      this.clearOutput();
+      this.clearOutput(false);
       const template = this.requireTemplate();
       if (
         !settings ||
@@ -354,6 +379,14 @@ export class DocumentWorkflow {
       )
         throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
       requireMode(settings.mode);
+      const format = settings.documentFormat ?? 'docx';
+      requireFormat(format);
+      const extension = `.${format}`;
+      if (
+        settings.mergedPdf !== undefined &&
+        (settings.mode === 'single' || typeof settings.mergedPdf !== 'string')
+      )
+        throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
       const selection = this.selectedOutput;
       const nativeConsent =
         settings.mode !== 'directory' &&
@@ -370,15 +403,18 @@ export class DocumentWorkflow {
           }),
         ]);
       if (settings.mode !== 'directory')
-        requireExtension(settings.destination, settings.mode === 'zip' ? '.zip' : '.docx');
+        requireExtension(settings.destination, settings.mode === 'zip' ? '.zip' : extension);
       let pathTemplate = settings.pathTemplate;
-      if (!path.posix.extname(pathTemplate)) pathTemplate += '.docx';
-      if (settings.mode !== 'single') requireExtension(pathTemplate, '.docx');
+      if (!path.posix.extname(pathTemplate)) pathTemplate += extension;
+      if (settings.mode !== 'single') requireExtension(pathTemplate, extension);
       const prepared = prepareGeneration({
         template: template.prepared,
         input: this.batch(records),
         request: {
-          documentOutputs: 'docx',
+          documentOutputs: format,
+          ...(settings.mergedPdf === undefined
+            ? {}
+            : { aggregates: [{ kind: 'merged-pdf' as const, relativePath: settings.mergedPdf }] }),
           naming:
             settings.mode === 'single'
               ? { kind: 'single', fileName: path.basename(settings.destination) }
@@ -431,7 +467,7 @@ export class DocumentWorkflow {
         documentCount: generation.plan.documents.length,
         destination: settings.destination,
         mode: settings.mode,
-        paths: generation.plan.documents.map((document) => document.docxPath),
+        paths: deriveUnbundledManifestItems(generation.plan).map((item) => item.relativePath),
       };
     });
   }
@@ -466,7 +502,7 @@ export class DocumentWorkflow {
       phase(this.text('renderDocx'));
       const generated = requireStage(
         'generation',
-        await generateArtifacts(preview.generation),
+        await generateArtifacts(preview.generation, { pdfConverter: this.cachedConverter() }),
         warnings,
       );
       phase(this.text('packageDocs'));
@@ -500,6 +536,83 @@ export class DocumentWorkflow {
       return true;
     });
   }
+  openOutputFile(): Promise<DesktopResult<boolean>> {
+    return this.run(async () => {
+      if (!this.completed || this.completed.mode !== 'single')
+        throw new WorkflowFailure([diagnostic('desktop', { code: 'NoPublishedOutput' })]);
+      const error = await shell.openPath(this.completed.destination);
+      if (error)
+        throw new WorkflowFailure([
+          diagnostic('desktop', {
+            code: 'OpenFileFailed',
+            path: this.completed.destination,
+            reason: error,
+          }),
+        ]);
+      return true;
+    });
+  }
+  previewPdf(
+    records: readonly Readonly<Record<string, unknown>>[] | null,
+    selection: number | 'all',
+  ): Promise<DesktopResult<PdfPreview>> {
+    return this.run(async (warnings) => {
+      const template = this.requireTemplate();
+      const batch = requireStage(
+        'input',
+        normalizeRecords(template.prepared.definition, this.batch(records)),
+        warnings,
+      );
+      if (
+        selection !== 'all' &&
+        (!Number.isInteger(selection) || selection < 0 || selection >= batch.records.length)
+      )
+        throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
+      const prepared = prepareGeneration({
+        template: template.prepared,
+        input: {
+          kind: 'object-rows',
+          rows: selection === 'all' ? batch.records : [batch.records[selection]!],
+        },
+        request: {
+          documentOutputs: 'pdf',
+          naming: { kind: 'template', pathTemplate: 'preview-{$index}.pdf' },
+          ...(selection === 'all'
+            ? { aggregates: [{ kind: 'merged-pdf' as const, relativePath: 'preview-all.pdf' }] }
+            : {}),
+        },
+      });
+      if (!prepared.ok)
+        throw new WorkflowFailure(
+          prepared.errors.map((error) => diagnostic(error.stage, error.issue)),
+        );
+      const generated = requireStage(
+        'generation',
+        await generateArtifacts(prepared.value, { pdfConverter: this.cachedConverter() }),
+        warnings,
+      );
+      const artifact = generated.artifacts.find(
+        (item) => item.kind === (selection === 'all' ? 'merged-pdf' : 'pdf'),
+      );
+      if (!artifact)
+        throw new WorkflowFailure([diagnostic('pdf-preview', { code: 'PdfPreviewFailed' })]);
+      return { id: ++this.sequence, bytes: artifact.bytes };
+    });
+  }
+  private cachedConverter(): PdfConverter {
+    return {
+      id: this.converter.id,
+      getAvailability: () => this.converter.getAvailability(),
+      convert: async (docx) => {
+        const key = createHash('sha256').update(docx).digest('hex');
+        const cached = this.pdfCache.get(key);
+        if (cached) return cached;
+        const result = await this.converter.convert(docx);
+        this.pdfCache.set(key, result);
+        return result;
+      },
+    };
+  }
   openExcelTemplate(): Promise<DesktopResult<boolean>> {
     return this.run(async () => {
       if (!this.exportedTemplate)
@@ -524,9 +637,9 @@ export class DocumentWorkflow {
       return true;
     });
   }
-  invalidateOutput(): Promise<DesktopResult<boolean>> {
+  invalidateOutput(preservePdf = false): Promise<DesktopResult<boolean>> {
     return this.run(async () => {
-      this.clearOutput();
+      this.clearOutput(preservePdf !== true);
       return true;
     });
   }
@@ -565,6 +678,10 @@ function requireStage<T, E, W>(
 }
 function requireMode(mode: unknown): asserts mode is OutputMode {
   if (mode !== 'single' && mode !== 'directory' && mode !== 'zip')
+    throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
+}
+function requireFormat(format: unknown): asserts format is 'docx' | 'pdf' {
+  if (format !== 'docx' && format !== 'pdf')
     throw new WorkflowFailure([diagnostic('desktop', { code: 'InvalidRequest' })]);
 }
 function requireExtension(value: string, extension: string) {

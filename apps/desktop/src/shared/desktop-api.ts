@@ -1,5 +1,6 @@
 import type { RecordData, RecordOrigin, TemplateDefinition } from '@templify/core';
 import type { AppSettings, LanguagePreference } from './settings';
+import type { PdfFontData, PdfFontRequest } from '@templify/node-output';
 
 export interface DesktopIssue {
   readonly stage: string;
@@ -42,6 +43,8 @@ export interface OutputSettings {
   readonly mode: OutputMode;
   readonly destination: string;
   readonly pathTemplate: string;
+  readonly documentFormat?: 'docx' | 'pdf';
+  readonly mergedPdf?: string;
 }
 export interface OutputPreview {
   readonly id: number;
@@ -55,6 +58,10 @@ export interface GeneratedDocuments {
   readonly paths: readonly string[];
   readonly replacedCount: number;
 }
+export interface PdfPreview {
+  readonly id: number;
+  readonly bytes: Uint8Array;
+}
 export interface DesktopApi {
   getSettings(): Promise<AppSettings>;
   setLanguage(language: LanguagePreference): Promise<DesktopResult<AppSettings>>;
@@ -67,14 +74,22 @@ export interface DesktopApi {
   validateRecords(
     records: readonly Readonly<Record<string, unknown>>[] | null,
   ): Promise<DesktopResult<number>>;
-  selectOutput(mode: OutputMode): Promise<DesktopResult<string>>;
+  selectOutput(mode: OutputMode, format?: 'docx' | 'pdf'): Promise<DesktopResult<string>>;
   previewOutput(
     records: readonly Readonly<Record<string, unknown>>[] | null,
     settings: OutputSettings,
   ): Promise<DesktopResult<OutputPreview>>;
   generate(previewId: number): Promise<DesktopResult<GeneratedDocuments>>;
   openOutput(): Promise<DesktopResult<boolean>>;
+  openOutputFile(): Promise<DesktopResult<boolean>>;
+  previewPdf(
+    records: readonly Readonly<Record<string, unknown>>[] | null,
+    selection: number | 'all',
+  ): Promise<DesktopResult<PdfPreview>>;
+  onFontRequest(
+    callback: (requests: readonly PdfFontRequest[]) => Promise<readonly PdfFontData[]>,
+  ): () => void;
   resetInput(): Promise<DesktopResult<boolean>>;
-  invalidateOutput(): Promise<DesktopResult<boolean>>;
+  invalidateOutput(preservePdf?: boolean): Promise<DesktopResult<boolean>>;
   reset(): Promise<DesktopResult<boolean>>;
 }

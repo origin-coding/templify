@@ -42,6 +42,14 @@ function removeItem(field: CollectionFieldDefinition, index: number) {
           </div>
           <TButton size="small" variant="outline" @click="store.addRecord">{{ t('add') }}</TButton>
         </div>
+        <div class="toolbar">
+          <TButton
+            variant="outline"
+            :disabled="store.busy || !store.count"
+            @click="store.previewPdf('all')"
+            >{{ t('previewAllPdf') }}</TButton
+          >
+        </div>
         <div
           v-for="(record, index) in store.drafts"
           :key="record.id"
@@ -64,15 +72,25 @@ function removeItem(field: CollectionFieldDefinition, index: number) {
     >
     <TCol :xs="12" :sm="9" class="form-column">
       <div v-if="store.current" :key="store.current.id" class="field-list">
-        <div class="record-heading">
-          <h3>
-            {{
-              t('editRecord', {
-                index: store.drafts.findIndex((record) => record.id === store.selectedId) + 1,
-              })
-            }}
-          </h3>
-          <p class="muted">{{ t('autoSave') }}</p>
+        <div class="record-heading toolbar wrap">
+          <div>
+            <h3>
+              {{
+                t('editRecord', {
+                  index: store.drafts.findIndex((record) => record.id === store.selectedId) + 1,
+                })
+              }}
+            </h3>
+            <p class="muted">{{ t('autoSave') }}</p>
+          </div>
+          <TButton
+            variant="outline"
+            :disabled="store.busy"
+            @click="
+              store.previewPdf(store.drafts.findIndex((record) => record.id === store.selectedId))
+            "
+            >{{ t('previewCurrentPdf') }}</TButton
+          >
         </div>
         <p v-if="!store.fields.length" class="muted">{{ t('noFields') }}</p>
         <template v-for="field in store.fields" :key="field.name">

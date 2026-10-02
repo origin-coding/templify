@@ -6,6 +6,7 @@ import { useGenerationStore } from '../stores/generation';
 import { MessagePlugin, NotifyPlugin } from 'tdesign-vue-next';
 import { issueMessage, issueLocation } from '../utils/diagnostics';
 import desktopPackage from '../../../package.json';
+import { readLocalFonts } from '../utils/local-fonts';
 const store = useGenerationStore();
 const aboutVisible = ref(false);
 const settingsVisible = ref(false);
@@ -25,6 +26,7 @@ watch(
       void NotifyPlugin.error({
         title: feedback.title,
         content: feedback.issues
+          .filter((issue) => issue.code !== 'PdfConversionLoss')
           .map((issue) => [issueMessage(issue), issueLocation(issue)].filter(Boolean).join(' · '))
           .join('；'),
         duration: 0,
@@ -38,12 +40,17 @@ function helpAction(option: { value?: unknown }) {
   else if (option.value === 'docs') void store.openDocumentation();
 }
 let unsubscribe: (() => void) | undefined;
+let unsubscribeFonts: (() => void) | undefined;
 onMounted(() => {
   unsubscribe = window.templify.onPhase((value) => {
     if (store.busy) store.phase = value;
   });
+  unsubscribeFonts = window.templify.onFontRequest(readLocalFonts);
 });
-onUnmounted(() => unsubscribe?.());
+onUnmounted(() => {
+  unsubscribe?.();
+  unsubscribeFonts?.();
+});
 const titles = computed(() => [t('selectTemplate'), t('prepareData'), t('configureOutput')]);
 function stepStatus(index: number): 'default' | 'process' | 'finish' | 'error' {
   if (index === store.step) return store.issues.length ? 'error' : 'process';
@@ -163,12 +170,13 @@ function stepStatus(index: number): 'default' | 'process' | 'finish' | 'error' {
         v-else
         theme="primary"
         :loading="store.busy"
-        :disabled="!store.preview || store.busy"
+        :disabled="!store.output.destination || store.busy"
         @click="store.generate"
         >{{ t('generate') }}</TButton
       >
     </TFooter>
   </TLayout>
+  <PdfPreviewDialog />
   <TDialog v-model:visible="aboutVisible" :header="t('about')" :footer="false" width="420px">
     <p>Templify {{ desktopPackage.version }}</p>
     <p class="muted">{{ t('aboutDescription') }}</p>

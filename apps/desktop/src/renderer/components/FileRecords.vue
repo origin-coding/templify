@@ -48,6 +48,14 @@ const store = useGenerationStore();
       <span>{{ t('inputSummary', { count: store.count }) }}</span>
     </div>
   </div>
+  <div v-if="store.imported" class="toolbar">
+    <TButton
+      variant="outline"
+      :disabled="store.busy || !store.count"
+      @click="store.previewPdf('all')"
+      >{{ t('previewAllPdf') }}</TButton
+    >
+  </div>
   <RecordsPreview v-if="store.imported" :key="store.version" />
   <p v-else class="empty-state">{{ t('noImported') }}</p>
 </template>

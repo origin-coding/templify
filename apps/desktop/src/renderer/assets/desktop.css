@@ -46,12 +46,12 @@ body {
   align-items: center;
   gap: 12px;
 }
-.field-row label {
+.field-row > label:not(.t-checkbox) {
   display: grid;
   gap: 4px;
   overflow-wrap: anywhere;
 }
-.field-row label span {
+.field-row > label:not(.t-checkbox) > span {
   color: #758293;
   font-size: 12px;
 }

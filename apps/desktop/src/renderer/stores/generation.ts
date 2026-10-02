@@ -1,6 +1,7 @@
 import { t } from '../utils/i18n';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { clearLocalFonts } from '../utils/local-fonts';
 import type { FieldDefinition, ScalarFieldDefinition } from '@templify/core';
 import type {
   DesktopIssue,
@@ -26,6 +27,7 @@ const defaultOutput = (): OutputSettings => ({
   mode: 'single',
   destination: '',
   pathTemplate: 'document-{$index}.docx',
+  documentFormat: 'docx',
 });
 
 export const useGenerationStore = defineStore('generation', () => {
@@ -38,6 +40,9 @@ export const useGenerationStore = defineStore('generation', () => {
   const output = ref<OutputSettings>(defaultOutput());
   const preview = ref<OutputPreview>();
   const generated = ref<GeneratedDocuments>();
+  const pdfPreviewId = ref<number>();
+  const pdfPreviewSource = ref<string>();
+  const pdfPreviewOpen = ref(false);
   const issues = ref<readonly DesktopIssue[]>([]);
   const warnings = ref<readonly DesktopIssue[]>([]);
   const exportedTemplate = ref<string>();
@@ -67,16 +72,20 @@ export const useGenerationStore = defineStore('generation', () => {
     mode.value === 'manual' ? drafts.value.length : (imported.value?.records.length ?? 0),
   );
 
-  function invalidate() {
-    const hadOutput = preview.value !== undefined || generated.value !== undefined;
+  function invalidate(preservePdf = false) {
+    const hadOutput =
+      preview.value !== undefined ||
+      generated.value !== undefined ||
+      pdfPreviewId.value !== undefined;
     version.value++;
     preview.value = undefined;
     generated.value = undefined;
+    if (!preservePdf) clearPdfPreview();
     issues.value = [];
     warnings.value = [];
     if (hadOutput) {
       const changed = version.value;
-      void window.templify.invalidateOutput().catch((cause) => {
+      void window.templify.invalidateOutput(preservePdf).catch((cause) => {
         if (version.value === changed)
           issues.value = [{ stage: 'desktop', code: 'UnexpectedFailure', details: String(cause) }];
       });
@@ -90,6 +99,7 @@ export const useGenerationStore = defineStore('generation', () => {
     invalidate();
   }
   function clearTask() {
+    clearLocalFonts();
     template.value = undefined;
     exportedTemplate.value = undefined;
     mode.value = 'manual';
@@ -116,8 +126,18 @@ export const useGenerationStore = defineStore('generation', () => {
   }
   function updateOutput(value: Partial<OutputSettings>) {
     if (busy.value) return;
-    output.value = { ...output.value, ...value };
-    invalidate();
+    if (value.documentFormat && value.documentFormat !== output.value.documentFormat) {
+      const pathTemplate = output.value.pathTemplate.replace(
+        /\.(docx|pdf)$/i,
+        `.${value.documentFormat}`,
+      );
+      output.value = { ...output.value, ...value, destination: '', pathTemplate };
+    } else output.value = { ...output.value, ...value };
+    if (output.value.mode === 'single') {
+      const { mergedPdf: _merged, ...single } = output.value;
+      output.value = single;
+    }
+    invalidate(true);
   }
   function snapshot(): readonly Readonly<Record<string, unknown>>[] | null {
     return mode.value === 'file'
@@ -200,6 +220,7 @@ export const useGenerationStore = defineStore('generation', () => {
     preview.value = undefined;
     generated.value = undefined;
     imported.value = result.status === 'ok' ? result.value : undefined;
+    clearPdfPreview();
     source.value = result.status === 'ok' ? result.value.source : result.source;
     version.value++;
     if (result.status === 'ok')
@@ -244,7 +265,7 @@ export const useGenerationStore = defineStore('generation', () => {
   }
   async function chooseOutput() {
     const result = await perform(
-      () => window.templify.selectOutput(output.value.mode),
+      () => window.templify.selectOutput(output.value.mode, output.value.documentFormat ?? 'docx'),
       t('outputTitle'),
       true,
     );
@@ -258,6 +279,7 @@ export const useGenerationStore = defineStore('generation', () => {
     preview.value = result?.status === 'ok' ? result.value : undefined;
   }
   async function generate() {
+    if (!preview.value) await planOutput();
     if (!preview.value) return;
     const id = preview.value.id;
     const result = await perform(() => window.templify.generate(id), t('generate'), true);
@@ -273,6 +295,30 @@ export const useGenerationStore = defineStore('generation', () => {
   async function openOutput() {
     await perform(() => window.templify.openOutput(), t('openOutput'), true);
   }
+  async function openOutputFile() {
+    await perform(() => window.templify.openOutputFile(), t('openFile'), true);
+  }
+  async function previewPdf(selection: number | 'all') {
+    if (busy.value) return;
+    clearPdfPreview();
+    const result = await perform(
+      () => window.templify.previewPdf(snapshot(), selection),
+      t('previewPdf'),
+    );
+    if (result?.status === 'ok') {
+      pdfPreviewId.value = result.value.id;
+      pdfPreviewSource.value = URL.createObjectURL(
+        new Blob([new Uint8Array(result.value.bytes).buffer], { type: 'application/pdf' }),
+      );
+      pdfPreviewOpen.value = true;
+    }
+  }
+  function clearPdfPreview() {
+    pdfPreviewOpen.value = false;
+    if (pdfPreviewSource.value) URL.revokeObjectURL(pdfPreviewSource.value);
+    pdfPreviewSource.value = undefined;
+    pdfPreviewId.value = undefined;
+  }
   return {
     template,
     mode,
@@ -283,6 +329,9 @@ export const useGenerationStore = defineStore('generation', () => {
     output,
     preview,
     generated,
+    pdfPreviewId,
+    pdfPreviewSource,
+    pdfPreviewOpen,
     issues,
     warnings,
     exportedTemplate,
@@ -311,5 +360,7 @@ export const useGenerationStore = defineStore('generation', () => {
     generate,
     reset,
     openOutput,
+    openOutputFile,
+    previewPdf,
   };
 });

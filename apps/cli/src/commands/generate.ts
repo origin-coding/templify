@@ -10,6 +10,7 @@ import {
 } from '@templify/core';
 import {
   createPublicationPlan,
+  createNodePdfConverter,
   preflightPublication,
   publishArtifacts,
 } from '@templify/node-output';
@@ -175,7 +176,9 @@ export const generate = define({
       }
       return;
     }
-    const generated = requireStage(await generateArtifacts(generation));
+    const generated = requireStage(
+      await generateArtifacts(generation, { pdfConverter: createNodePdfConverter() }),
+    );
     const packaged = requireStage(packageArtifacts(generation.plan, generated));
     const published = requireStage(await publishArtifacts(preflighted, packaged));
     for (const artifact of published.artifacts) process.stdout.write(artifact.path + '\n');

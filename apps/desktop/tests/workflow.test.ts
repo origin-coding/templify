@@ -3,7 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow, dialog, shell } from 'electron';
-import { publishArtifacts } from '@templify/node-output';
+import { publishArtifacts, createNodePdfConverter } from '@templify/node-output';
+import { readPdfText } from '../../../packages/node-output/tests/pdf-fixture';
 import { createDocx, readArchive } from '../../../packages/core/tests/docx-fixture';
 import { createXlsx } from '../../../packages/tabular-input/tests/xlsx-fixture';
 import { DocumentWorkflow } from '../src/main/document-workflow';
@@ -71,6 +72,109 @@ afterEach(async () => {
 });
 
 describe('desktop batch workflow', () => {
+  it('previews selected/all records before export and reuses PDF conversion for ordered merged output', async () => {
+    const font = new Uint8Array(
+      await readFile(
+        new URL('../../../packages/node-output/tests/fixtures/arimo-regular.ttf', import.meta.url),
+      ),
+    );
+    const converter = createNodePdfConverter({
+      localFonts: async (requests) => requests.map((request) => ({ ...request, bytes: font })),
+    });
+    const convert = vi.spyOn(converter, 'convert');
+    workflow = new DocumentWorkflow(() => 'en-US', {
+      pdfConverter: converter,
+    });
+    value(await select());
+    const records = [{ name: 'Alice' }, { name: 'Bob' }];
+    const selectedPreview = value(await workflow.previewPdf(records, 1));
+    expect(readPdfText(selectedPreview.bytes)).toContain('Bob');
+    expect(readPdfText(selectedPreview.bytes)).not.toContain('Alice');
+    expect(await readdir(root)).toEqual(['template.docx']);
+    const allPreview = value(await workflow.previewPdf(records, 'all'));
+    expect(allPreview.id).not.toBe(selectedPreview.id);
+    const allText = readPdfText(allPreview.bytes);
+    expect(allText.indexOf('Alice')).toBeLessThan(allText.indexOf('Bob'));
+    value(await workflow.invalidateOutput(true));
+    const planned = value(
+      await workflow.previewOutput(records, {
+        mode: 'directory',
+        documentFormat: 'pdf',
+        mergedPdf: 'merged.pdf',
+        destination: path.join(root, 'out'),
+        pathTemplate: '{name}.pdf',
+      }),
+    );
+    value(await workflow.generate(window, planned.id));
+    expect(convert).toHaveBeenCalledTimes(2);
+    expect(await readdir(path.join(root, 'out'))).toEqual(['Alice.pdf', 'Bob.pdf', 'merged.pdf']);
+    expect(readPdfText(await readFile(path.join(root, 'out', 'merged.pdf')))).toBe(allText);
+    value(await workflow.invalidateOutput());
+    const refreshed = value(await workflow.previewPdf(records, 1));
+    expect(readPdfText(refreshed.bytes)).toContain('Bob');
+    expect(convert).toHaveBeenCalledTimes(3);
+  });
+
+  it('publishes DOCX plus merged PDF in a ZIP and exposes only show-in-folder for it', async () => {
+    const font = new Uint8Array(
+      await readFile(
+        new URL('../../../packages/node-output/tests/fixtures/arimo-regular.ttf', import.meta.url),
+      ),
+    );
+    workflow = new DocumentWorkflow(() => 'en-US', {
+      pdfConverter: createNodePdfConverter({
+        localFonts: async (requests) => requests.map((request) => ({ ...request, bytes: font })),
+      }),
+    });
+    value(await select());
+    const destination = path.join(root, 'batch.zip');
+    const planned = value(
+      await workflow.previewOutput([{ name: 'Alice' }, { name: 'Bob' }], {
+        mode: 'zip',
+        documentFormat: 'docx',
+        mergedPdf: 'merged.pdf',
+        destination,
+        pathTemplate: '{name}.docx',
+      }),
+    );
+    value(await workflow.generate(window, planned.id));
+    const files = readArchive(await readFile(destination));
+    expect(Object.keys(files)).toEqual(['Alice.docx', 'Bob.docx', 'merged.pdf']);
+    expect(readPdfText(files['merged.pdf']!)).toContain('Alice');
+    value(await workflow.openOutput());
+    expect(mocks.show).toHaveBeenCalledWith(destination);
+    expect(await workflow.openOutputFile()).toMatchObject({ status: 'error' });
+  });
+
+  it('offers both file operations for a single PDF', async () => {
+    const font = new Uint8Array(
+      await readFile(
+        new URL('../../../packages/node-output/tests/fixtures/arimo-regular.ttf', import.meta.url),
+      ),
+    );
+    workflow = new DocumentWorkflow(() => 'en-US', {
+      pdfConverter: createNodePdfConverter({
+        localFonts: async (requests) => requests.map((request) => ({ ...request, bytes: font })),
+      }),
+    });
+    value(await select());
+    const destination = path.join(root, 'single.pdf');
+    const planned = value(
+      await workflow.previewOutput([{ name: 'Alice' }], {
+        mode: 'single',
+        documentFormat: 'pdf',
+        destination,
+        pathTemplate: '{name}.pdf',
+      }),
+    );
+    value(await workflow.generate(window, planned.id));
+    mocks.openPath.mockResolvedValueOnce('');
+    value(await workflow.openOutputFile());
+    value(await workflow.openOutput());
+    expect(mocks.openPath).toHaveBeenCalledWith(destination);
+    expect(mocks.show).toHaveBeenCalledWith(destination);
+  });
+
   it('uses the selected language for native dialogs without changing template field names', async () => {
     workflow = new DocumentWorkflow(() => 'en-US');
     const selected = value(await select());

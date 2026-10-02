@@ -50,6 +50,7 @@ function sourceLabel(index: number) {
         <tr>
           <th>{{ t('recordSource') }}</th>
           <th v-for="field in store.fields" :key="field.name">{{ field.name }}</th>
+          <th>{{ t('pdfPreviewTitle') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -75,9 +76,18 @@ function sourceLabel(index: number) {
               </template>
               <span v-else>{{ display(record[field.name], field.hint.type) }}</span>
             </td>
+            <td>
+              <TButton
+                size="small"
+                variant="text"
+                :disabled="store.busy"
+                @click="store.previewPdf((page - 1) * 10 + offset)"
+                >{{ t('previewCurrentPdf') }}</TButton
+              >
+            </td>
           </tr>
           <tr v-if="expanded === (page - 1) * 10 + offset">
-            <td :colspan="store.fields.length + 1" class="expanded-cell">
+            <td :colspan="store.fields.length + 2" class="expanded-cell">
               <TTabs
                 :value="active"
                 @change="

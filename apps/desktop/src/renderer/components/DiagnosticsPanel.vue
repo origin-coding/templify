@@ -4,6 +4,10 @@ import { issueMessage, issueLocation } from '../utils/diagnostics';
 import type { DesktopIssue } from '../../shared/desktop-api';
 import { useGenerationStore } from '../stores/generation';
 const store = useGenerationStore();
+const issues = computed(() => [
+  ...store.issues,
+  ...store.warnings.filter((issue) => issue.code !== 'PdfConversionLoss'),
+]);
 function recordIndex(issue: DesktopIssue): number | undefined {
   const loc = issue.data?.location as { inputRowIndex?: number } | undefined;
   return (
@@ -30,11 +34,7 @@ async function locate(issue: DesktopIssue) {
 
 <template>
   <div class="diagnostics" aria-live="polite">
-    <div
-      v-for="(issue, index) in [...store.issues, ...store.warnings]"
-      :key="index"
-      class="diagnostic"
-    >
+    <div v-for="(issue, index) in issues" :key="index" class="diagnostic">
       <TAlert :theme="index < store.issues.length ? 'error' : 'warning'">
         {{ issueMessage(issue)
         }}<span v-if="issueLocation(issue)"> · {{ issueLocation(issue) }}</span>

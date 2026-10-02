@@ -12,6 +12,8 @@
     "typecheck": "nuxt prepare && vue-tsc --build --noEmit && tsc -p tsconfig.test.json --pretty false"
   },
   "devDependencies": {
+    "@embedpdf/pdfium": "2.15.1",
+    "@embedpdf/vue-pdf-viewer": "^2.15.1",
     "@nuxtjs/i18n": "^10.6.0",
     "@pinia/nuxt": "^1.0.2",
     "@tdesign-vue-next/nuxt": "^0.2.2",

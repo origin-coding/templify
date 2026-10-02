@@ -7,6 +7,9 @@ const pathPage = ref(1);
 function changeMode(value: unknown) {
   store.updateOutput({ mode: value as OutputMode, destination: '' });
 }
+function changeFormat(value: unknown) {
+  if (value === 'docx' || value === 'pdf') store.updateOutput({ documentFormat: value });
+}
 const paths = computed(() =>
   (store.preview?.paths ?? []).map((value, index) => ({ index: index + 1, path: value })),
 );
@@ -29,6 +32,12 @@ watch(
   </p>
   <div class="field-list output-fields">
     <div class="field-row">
+      <label>{{ t('documentFormat') }}</label>
+      <TRadioGroup :value="store.output.documentFormat ?? 'docx'" @change="changeFormat">
+        <TRadioButton value="docx">DOCX</TRadioButton><TRadioButton value="pdf">PDF</TRadioButton>
+      </TRadioGroup>
+    </div>
+    <div class="field-row">
       <label>{{ t('outputMode') }}</label
       ><TRadioGroup :value="store.output.mode" @change="changeMode"
         ><TRadioButton value="single" :disabled="store.count !== 1">{{
@@ -41,6 +50,22 @@ watch(
     <p v-if="store.count !== 1" class="muted">
       {{ t('singleHint') }}
     </p>
+    <div v-if="store.output.mode !== 'single'" class="field-row">
+      <label>{{ t('mergedPdf') }}</label>
+      <TCheckbox
+        :checked="store.output.mergedPdf !== undefined"
+        @change="store.updateOutput({ mergedPdf: $event ? 'merged.pdf' : undefined })"
+        >{{ t('includeMergedPdf') }}</TCheckbox
+      >
+    </div>
+    <div v-if="store.output.mergedPdf !== undefined" class="field-row">
+      <label for="merged-pdf-path">{{ t('mergedPdfPath') }}</label>
+      <TInput
+        id="merged-pdf-path"
+        :value="store.output.mergedPdf"
+        @change="store.updateOutput({ mergedPdf: String($event) })"
+      />
+    </div>
     <div class="field-row">
       <label>{{ t('outputLocation') }}</label>
       <div class="destination-control">
@@ -57,7 +82,7 @@ watch(
       />
     </div>
     <p v-if="store.output.mode !== 'single'" class="muted">
-      {{ t('namingHint') }}
+      {{ t('namingFormatHint', { format: store.output.documentFormat ?? 'docx' }) }}
     </p>
     <div class="actions">
       <TButton variant="outline" :disabled="!store.output.destination" @click="store.planOutput">{{
@@ -75,6 +100,7 @@ watch(
       </TTooltip>
     </div>
   </div>
+  <p class="muted">{{ t('pdfBestEffort') }}</p>
   <section v-if="store.preview" class="output-preview">
     <div class="preview-heading">
       <strong
@@ -111,7 +137,12 @@ watch(
       }}
     </p>
     <div class="actions wrap">
-      <TButton @click="store.openOutput">{{ t('openOutput') }}</TButton
+      <TButton v-if="store.output.mode === 'single'" @click="store.openOutputFile">{{
+        t('openFile')
+      }}</TButton>
+      <TButton @click="store.openOutput">{{
+        t(store.output.mode === 'directory' ? 'openDirectory' : 'showInFolder')
+      }}</TButton
       ><TButton variant="outline" @click="store.go(1)">{{ t('returnEdit') }}</TButton
       ><TButton variant="outline" @click="store.reset">{{ t('newTask') }}</TButton>
     </div>

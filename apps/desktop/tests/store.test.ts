@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGenerationStore } from '../src/renderer/stores/generation';
 import { usePreferencesStore } from '../src/renderer/stores/preferences';
 import { createI18n } from 'vue-i18n';
@@ -30,6 +30,7 @@ const api = {
   importRecords: vi.fn<DesktopApi['importRecords']>(),
   previewOutput: vi.fn<DesktopApi['previewOutput']>(),
   generate: vi.fn<DesktopApi['generate']>(),
+  previewPdf: vi.fn<DesktopApi['previewPdf']>(),
   invalidateOutput: vi.fn<DesktopApi['invalidateOutput']>(),
   exportExcel: vi.fn<DesktopApi['exportExcel']>(),
   getSettings: vi.fn<DesktopApi['getSettings']>(),
@@ -58,7 +59,41 @@ beforeEach(() => {
   });
   api.getSettings.mockResolvedValue({ language: 'system', systemLocale: 'zh-CN' });
 });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 describe('generation task state', () => {
+  it('opens a PDF from IPC bytes and releases its object URL when data changes', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-pdf');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    api.previewPdf.mockResolvedValue(ok({ id: 5, bytes: new Uint8Array([37, 80, 68, 70]) }));
+    const store = useGenerationStore();
+    await store.chooseTemplate();
+    await store.previewPdf(0);
+    expect(create.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(store.pdfPreviewId).toBe(5);
+    expect(store.pdfPreviewOpen).toBe(true);
+    expect(store.pdfPreviewSource).toBe('blob:test-pdf');
+    store.updateOutput({ destination: 'output.docx' });
+    expect(revoke).not.toHaveBeenCalled();
+    store.invalidate();
+    expect(revoke).toHaveBeenCalledWith('blob:test-pdf');
+    expect(store.pdfPreviewSource).toBeUndefined();
+    expect(store.pdfPreviewOpen).toBe(false);
+  });
+  it('keeps PDF content when output settings change and invalidates it when record data changes', () => {
+    const store = useGenerationStore();
+    store.pdfPreviewId = 7;
+    store.output = { ...store.output, destination: 'out.docx' };
+    store.updateOutput({ documentFormat: 'pdf' });
+    expect(store.pdfPreviewId).toBe(7);
+    expect(store.output.destination).toBe('');
+    expect(store.output.pathTemplate).toBe('document-{$index}.pdf');
+    expect(api.invalidateOutput).toHaveBeenCalledWith(true);
+    store.invalidate();
+    expect(store.pdfPreviewId).toBeUndefined();
+    expect(api.invalidateOutput).toHaveBeenLastCalledWith(false);
+  });
   it('changes language without changing the task and reports failed preference persistence', async () => {
     const store = useGenerationStore();
     const preferences = usePreferencesStore();
