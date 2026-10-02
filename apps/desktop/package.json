@@ -9,7 +9,7 @@
     "build": "node scripts/build.mjs",
     "ui:check": "node scripts/verify-ui.mjs",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt prepare && vue-tsc --build --noEmit && tsc -p tsconfig.test.json --pretty false"
+    "typecheck": "pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input build && nuxt prepare && vue-tsc --build --noEmit && tsc -p tsconfig.test.json --pretty false"
   },
   "devDependencies": {
     "@embedpdf/pdfium": "2.15.1",
