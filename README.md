@@ -1,227 +1,159 @@
 # Templify
 
-Templify is a focused desktop utility for filling DOCX templates from user-provided records.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-The project is in its initial development stage. Its first end-to-end milestone is:
+Templify fills Word templates with your records. Use Desktop to prepare forms
+interactively, or the CLI to generate documents from scripts. Each record produces
+its own document; collections repeat content inside that document.
+
+## Features
+
+- Inspect DOCX templates and discover fields with lightweight type hints.
+- Enter multiple records manually in Desktop, including collection items.
+- Import CSV or XLSX data by field name, regardless of column order.
+- Generate one DOCX or PDF per record, as a single file, a directory, or a ZIP.
+- Add an ordered merged PDF to directory or ZIP output.
+- Preview one record or all records as PDF in Desktop before choosing an output location.
+- Configure date, datetime, number, and boolean output formats.
+- Preview output paths, sanitize record-derived filenames, and refuse existing
+  output files unless overwrite is explicitly selected.
+- Use the desktop interface in English or Simplified Chinese.
+
+Templify does not edit DOCX/PDF content, calculate spreadsheet formulas, or provide
+accounts, workflows, or a document-management system.
+
+## Try the demos
+
+The [demo guide](docs/demos/README.md) includes two English-language templates:
+
+| Example                                                        | What it demonstrates                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------------ |
+| [Workshop registration](docs/demos/workshop-registration.docx) | Text, dates, numbers, booleans, and repeated fields.         |
+| [Equipment checkout](docs/demos/equipment-checkout.docx)       | A repeating equipment table within each document.            |
+| [Equipment workbook](docs/demos/equipment-checkout.xlsx)       | Two records with three and two equipment items respectively. |
+
+In Desktop:
+
+1. Choose a DOCX template in **Select Template**.
+2. In **Prepare Data**, enter records or import CSV/XLSX. For the equipment demo,
+   import the supplied workbook with `checkouts` as the root worksheet.
+3. Optionally adjust field formats or preview the current record or all records as PDF.
+4. In **Configure Output**, choose DOCX or PDF and a single file, directory, or ZIP.
+   Single-file output requires exactly one record.
+5. Choose the destination, preview paths, and generate. Review the overwrite
+   confirmation if any target already exists.
+
+For the equipment demo, choose directory or ZIP output with `{checkoutId}.docx`
+to produce `EC-001.docx` and `EC-002.docx`.
+
+## Template tags
+
+| Tag                                                     | Meaning                                            |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `{name}` or `{name:string}`                             | Text; leading zeros remain text.                   |
+| `{amount:number}`                                       | Numeric input.                                     |
+| `{enabled:boolean}`                                     | Boolean input.                                     |
+| `{birthday:date}`                                       | Calendar date.                                     |
+| `{startsAt:datetime}`                                   | Date and time.                                     |
+| `{department:option["Engineering","Finance","Office"]}` | Suggested choices; other text values are accepted. |
+
+Place collection item fields inside a loop, for example:
 
 ```text
-template.docx
-  -> inspect fields
-  -> create one record
-  -> render
-  -> output.docx
+{#items}
+{itemName} - {quantity:number}
+{/items}
 ```
 
-## Scope
+Collections support one level of scalar item fields. Nested and inverted loops
+are unsupported. A collection item does not create a separate document.
 
-Templify is designed to support:
+## Data and output rules
 
-- DOCX templates with lightweight field hints.
-- Manual, CSV, and Excel/XLSX input.
-- Single-document, directory, and archive output.
-- Safe output path templates and explicit conflict handling.
+- CSV/XLSX headers must match field names exactly. Missing or duplicate columns
+  fail; extra columns are ignored with diagnostics. Empty rows are skipped.
+- CSV supports scalar fields only. XLSX supports collections through separate
+  worksheets linked by `__templify_id` and `__templify_parent_id`.
+- Only `.xlsx` Excel files are supported. Formula cells require a usable result
+  already saved by Excel; Templify does not calculate formulas.
+- Directory/ZIP path templates accept literal text and placeholders, such as
+  `{department}/{name}.docx`, plus `{$index}` for a one-based record index.
+  Record values are sanitized as path segments; only template separators create folders.
+- There is no multi-record merged DOCX output. Optional merged PDFs follow the
+  accepted record order.
 
-Templify is not intended to become a document management system, workflow engine, office suite, or general-purpose schema platform.
+See the [CLI guide](apps/cli/README.md) for input conversions, collection workbook
+rules, command options, and formatting JSON.
 
-## Repository layout
+## Formatting and limitations
 
-```text
-apps/       Executable applications such as Desktop and CLI.
-packages/   Shared domain, application, and infrastructure packages.
-tests/      Cross-package integration tests and fixtures.
-```
+Desktop Settings saves interface language and type-level format defaults.
+Prepare Data provides rules for the current template's fields, including collection
+children. These rules clear when the template changes or a new task starts.
+Records and document tasks are not restored after closing the app.
 
-The current shared packages are:
+**PDF previews and exports may contain font, formatting, or pagination errors,
+even with embedded fonts. The final rendered DOCX is authoritative.** Conversion
+diagnostics cannot guarantee visual fidelity. Review DOCX output in Word and
+review PDFs before sharing or printing.
 
-- `@templify/core`: template preparation, input normalization, generation planning, in-memory rendering, PDF derivation boundaries, and artifact packaging.
-- `@templify/node-output`: pure publication planning, read-only filesystem preflight, and confirmed filesystem publication.
-- `@templify/tabular-input`: shared CSV/XLSX parsing and input-template export.
+DOCX filling does not require network access. PDF conversion may download and
+cache fallback fonts when suitable embedded, local Desktop, or cached fonts are
+unavailable. Fonts are not bundled. Desktop does not provide direct printing;
+open generated files in an external application to print them.
 
-See [the staged pipeline decision](./docs/decisions/staged-core-pipeline.md) for the responsibility boundaries and public flow.
+## Run from source
 
-CLI generation accepts `--render-options <file.json>` for type defaults and
-individual field formats. Desktop provides persistent default formats in Settings
-and task-specific rules in Prepare Data. See [render formatting](./docs/decisions/render-formatting.md)
-for the configuration format and precedence.
-
-## Development
-
-Requirements:
-
-- Node.js 24.11 or later.
-- pnpm 11.
-
-Install dependencies:
+Requirements: Node.js **24.11.0 or later** and pnpm **11**, using the version pinned
+in the root `packageManager` field. Run from the repository root:
 
 ```shell
 pnpm install
-```
-
-Run all repository checks:
-
-```shell
-pnpm check
-```
-
-Individual checks are also available:
-
-```shell
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:run
-pnpm build
-```
-
-## Desktop
-
-The desktop app currently supports the first manual-input workflow: choose a DOCX
-template, inspect its fields, fill one record, and save one DOCX. It uses the same
-core generation and filesystem publication pipeline as the CLI. Existing output
-files are refused unless **Allow overwrite** is selected.
-
-Start the development app:
-
-```shell
 pnpm --filter @templify/desktop dev
 ```
 
-The script builds the shared packages, starts their watchers and Nuxt, then starts
-Electron after the renderer and both Electron bundles are ready. Nuxt updates the
-page through HMR. A successful rebuild of main or preload restarts Electron.
+The desktop development command builds shared packages and starts watchers,
+Nuxt, and Electron. Electron downloads its runtime separately; if the download
+is unavailable, configure `ELECTRON_MIRROR` before starting.
 
-The desktop TypeScript configuration uses Nuxt 4 project references alongside
-the Electron configuration. `pnpm install` prepares Nuxt's generated types. The
-workspace uses TypeScript 5.9 so Nuxt, `vue-tsc`, and the IDE's Vue language
-service share the same JavaScript SDK. In WebStorm, select the workspace's
-`node_modules/typescript` package and use the Vue language server in Auto mode
-with its service-powered type engine enabled.
-
-Electron downloads its runtime binary separately from the npm package. If the
-default download is unavailable, set `ELECTRON_MIRROR` before running the dev
-script (for example, `https://npmmirror.com/mirrors/electron/`).
-
-Build the desktop assets or create an unpacked Windows application:
+Build desktop assets and create an unpacked Windows application:
 
 ```shell
 pnpm --filter @templify/desktop build
-pnpm --filter @templify/desktop exec electron-builder --dir
+pnpm --filter @templify/desktop exec electron-builder --dir --win --publish never
 ```
 
-The app currently has no signing, updater, or release publishing configuration.
+Packaging output goes to `apps/desktop/release/`. This command creates an unpacked
+application directory rather than an installer.
 
-## CLI
-
-The CLI supports template inspection, manual values, CSV/XLSX records, and single, directory, or ZIP DOCX output.
-It uses the same core pipeline as future desktop adapters.
-
-For development, run the build watcher in one terminal:
+Try the CLI from source:
 
 ```shell
-pnpm --filter @templify/cli dev
+pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @templify/cli build
+node apps/cli/dist/index.js inspect docs/demos/workshop-registration.docx
 ```
 
-After its first build, run a CLI command in another terminal:
+See [Contributing](CONTRIBUTING.md) for checks and development guidance.
 
-```shell
-pnpm --filter @templify/cli start inspect template.docx
-```
+## Repository and documentation
 
-The watcher rebuilds after source changes; rerun the CLI command to try them. To
-use breakpoints, debug `apps/cli/dist/index.js` in an IDE. Source maps point back
-to the TypeScript source.
+| Directory                | Responsibility                                                                     |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `apps/desktop`           | Electron, Nuxt/Vue, and TDesign desktop application.                               |
+| `apps/cli`               | CLI adapter with `inspect` and `generate`.                                         |
+| `packages/core`          | In-memory template preparation, normalization, planning, rendering, and packaging. |
+| `packages/tabular-input` | CSV/XLSX parsing and input-table export.                                           |
+| `packages/node-output`   | Filesystem publication and Node PDF font handling.                                 |
+| `tests`                  | Cross-package integration tests.                                                   |
+| `docs/demos`             | Templates, input data, and bilingual instructions.                                 |
+| `docs/decisions`         | Lasting architecture and product decisions.                                        |
 
-For a one-off build or a packaged CLI check:
-
-```shell
-pnpm --filter @templify/cli build
-node apps/cli/dist/index.js inspect template.docx --format json
-node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx
-node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.docx --dry-run
-node apps/cli/dist/index.js inspect template.docx --format csv-template --output records.csv
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out --path-template '{name}'
-node apps/cli/dist/index.js generate template.docx --input legacy.csv --input-encoding gbk --output-dir out
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip --path-template '{name}'
-node apps/cli/dist/index.js inspect template.docx --format excel-template --output records.xlsx
-node apps/cli/dist/index.js generate template.docx --input records.xlsx --output-dir out
-node apps/cli/dist/index.js generate template.docx --input records.xlsx --sheet Records --output-zip documents.zip
-node apps/cli/dist/index.js generate template.docx --set name=Alice --output-file output.pdf --document-format pdf
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-dir out --document-format pdf --merged-pdf all.pdf
-node apps/cli/dist/index.js generate template.docx --input records.csv --output-zip documents.zip --merged-pdf all.pdf
-```
-
-CSV input requires an exact-name header row. UTF-8 with or without a BOM is accepted by
-default; use `--input-encoding gbk` for legacy GBK files. CSV input and template
-export reject DOCX templates with collection fields. Exported CSV templates have one
-header row and a UTF-8 BOM for spreadsheet compatibility. Directory and ZIP output
-default to `document-{$index}.docx` for DOCX or `document-{$index}.pdf` for PDF.
-Each nonempty record produces one document. CSV and spreadsheet applications may convert text such as `001234` when editing; use an XLSX workflow
-when those values must be protected.
-
-Repeat `--set field=value` for multiple fields. The default conflict policy refuses to
-replace existing output; pass `--overwrite` to replace it. Diagnostics go to stderr,
-while command results go to stdout.
-
-`--document-format` selects `docx` (the default) or `pdf` for each record. A
-`--merged-pdf` path is available only with `--output-dir` or `--output-zip`. With
-DOCX output, the per-record PDFs used for merging stay in memory; only DOCX
-files and the aggregate PDF are published. With PDF output, both the
-per-record PDFs and aggregate PDF are published. **PDF previews and exports may
-contain font, formatting, or pagination errors. Fidelity is not guaranteed,
-even when fonts are embedded. The final rendered DOCX is authoritative.**
-Conversion losses detected by the converter are reported on stderr; an absence
-of warnings does not guarantee PDF fidelity.
-
-`inspect --format json`, `csv-template`, and `excel-template` require `.json`,
-`.csv`, and `.xlsx` output paths respectively. Table output has no required
-suffix. `--output-file` requires `.docx` or `.pdf` according to the selected
-document format, `--output-zip` requires `.zip`, and `--merged-pdf` requires a
-relative `.pdf` path. A `--path-template` without an extension gets the selected
-document extension; a mismatched extension is an error.
-
-Check the packed executable from an isolated installation with:
-
-```shell
-pnpm --filter @templify/cli smoke
-```
-
-## XLSX input workbooks
-
-For scalar-only templates, the first visible worksheet is read by default. Use `--sheet <name>`
-to select a different root worksheet. The first row contains exact template field names;
-each nonempty later row produces one document. The same rule selects the root worksheet
-when the DOCX template contains collections.
-
-For each top-level DOCX loop, use a worksheet whose name exactly matches the loop name.
-For example, `{#lineItems}...{/lineItems}` reads the `lineItems` worksheet. Multiple
-collections use separate worksheets. A workbook with collections has these columns:
-
-| Worksheet                 | Required columns                                                |
-| ------------------------- | --------------------------------------------------------------- |
-| Root worksheet            | `__templify_id`, then root scalar field names                   |
-| Each collection worksheet | `__templify_parent_id`, then that collection's item field names |
-
-The two relationship columns contain direct text IDs. Give each root row a unique ID
-such as `r1` or `r2`; each collection item refers to its root row with that ID.
-IDs stay attached when rows are sorted. Blank and duplicate root IDs, unmatched
-parent IDs, missing collection worksheets, and missing headers are errors. A collection
-worksheet with headers and no data rows produces an empty collection. For collection workbooks, extra worksheets and columns are ignored with warnings. The exported XLSX template sets ID and string
-columns to text format, but users can also prepare a workbook manually.
-
-A formula cell uses the calculated result saved in the XLSX file. Templify does not
-calculate formulas; missing or error results fail with the worksheet and cell position.
-Recalculate and save the workbook in Excel before importing when needed. Relationship
-IDs must be direct text, not formulas. Only `.xlsx` is accepted as Excel input; convert
-`.xls`, `.xlsm`, `.xlsb`, and Excel template formats first. Collection names must be
-valid Excel worksheet names. The reserved relationship column names cannot also be
-template fields in the corresponding scope.
-
-## Contributing
-
-Repository content, source code, comments, issues, pull requests, and commit messages use English. See [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting changes.
+- [CLI usage](apps/cli/README.md)
+- [Shared format configuration](docs/decisions/render-formatting.md)
+- [Core pipeline](docs/decisions/staged-core-pipeline.md)
+- [PDF preview and fonts](docs/decisions/desktop-pdf-and-fonts.md)
+- [Issues and feedback](https://github.com/origin-coding/templify/issues)
 
 ## License
 
-Licensed under the Apache License 2.0. See [LICENSE](./LICENSE).
+[Apache License 2.0](LICENSE).

@@ -9,7 +9,7 @@ Its primary purpose is to:
 1. Load and inspect a DOCX template.
 2. Discover template fields and optional lightweight type hints.
 3. Accept one or more records from supported input sources.
-4. Render the records into DOCX output.
+4. Render each record into DOCX, optionally deriving PDF output from it.
 5. Write the result as a single document, multiple files in a directory, or multiple files in an archive.
 
 The project exists to automate repetitive document generation tasks such as producing many printable forms from one Word template.
@@ -59,7 +59,8 @@ TypeScript
 Primary runtime:
 
 ```text
-Node.js
+Node.js >= 24.11.0
+pnpm 11 (version pinned in package.json)
 ```
 
 DOCX rendering:
@@ -69,17 +70,18 @@ Docxtemplater
 PizZip
 ```
 
-Desktop application, when implemented:
+Current desktop stack:
 
 ```text
 Electron
-Vue 3
+Nuxt 4 / Vue 3
 TDesign
+Pinia
 ```
 
 The desktop UI is the primary user-facing application.
 
-A CLI may exist as a thin secondary adapter, mainly for automation, testing, and scripted usage.
+The CLI is implemented as a thin secondary adapter for automation, testing, and scripted usage.
 
 The CLI must not become a separate implementation of the business logic.
 
@@ -89,18 +91,23 @@ Both Desktop and CLI should call the same application/core services.
 
 ## 4. Scope
 
-### 4.1 Version 1 Goals
+### 4.1 Implemented Scope
 
-Version 1 should support:
+The current code supports:
 
 * DOCX templates.
 * Template field discovery.
 * Lightweight type hints embedded in template tags.
-* Manual record input.
+* Multiple manual records in Desktop, including one-level collection items.
 * CSV input.
-* Excel/XLSX input.
+* Excel/XLSX input, including ID-linked collection worksheets.
 * Field matching by field name, never by column order.
-* Rendering one or more records.
+* Independent rendering of one or more records.
+* One-level scalar collection loops within each record.
+* DOCX and PDF per-record output, plus optional ordered merged PDF output.
+* Desktop PDF preview for one record or all records.
+* Shared boolean, date, datetime, and number output formatting.
+* English and Simplified Chinese desktop UI.
 * Single-document output.
 * Multi-document directory output.
 * Multi-document ZIP/archive output.
@@ -152,6 +159,7 @@ Examples:
 {name}
 {name:string}
 {birthday:date}
+{startsAt:datetime}
 {amount:number}
 {enabled:boolean}
 {department:option["Engineering","Finance","Office"]}
@@ -188,17 +196,18 @@ Type hints exist only to assist:
 
 They are **not a business validation system**.
 
-Initial supported hints should remain small:
+Supported hints remain deliberately small:
 
 ```text
 string
 number
 boolean
 date
+datetime
 option[...]
 ```
 
-A future `datetime` type may be added if needed.
+`date` represents a calendar date; `datetime` represents a date and time. Keep their normalization and formatting semantics distinct.
 
 Do not add validation-oriented syntax such as:
 
@@ -276,24 +285,35 @@ Do not scatter Docxtemplater tag parsing logic throughout the application.
 
 ## 9. Field Definition
 
-A field model can conceptually resemble:
+The current model separates scalar fields from one-level collections:
 
 ```ts
 type FieldHint =
-  | { type: "string" }
-  | { type: "number" }
-  | { type: "boolean" }
-  | { type: "date" }
-  | { type: "option"; values: string[] };
+  | { readonly type: 'string' }
+  | { readonly type: 'number' }
+  | { readonly type: 'boolean' }
+  | { readonly type: 'date' }
+  | { readonly type: 'datetime' }
+  | { readonly type: 'option'; readonly values: readonly string[] };
 
-interface FieldDefinition {
-  name: string;
-  hint: FieldHint;
+interface ScalarFieldDefinition {
+  readonly kind: 'scalar';
+  readonly name: string;
+  readonly hint: FieldHint;
 }
+
+interface CollectionFieldDefinition {
+  readonly kind: 'collection';
+  readonly name: string;
+  readonly fields: readonly ScalarFieldDefinition[];
+}
+
+type FieldDefinition = ScalarFieldDefinition | CollectionFieldDefinition;
 ```
 
-This is illustrative rather than a mandatory exact implementation.
-
+Collection tags use `{#items}...{/items}`. Collection children are scalar fields.
+Nested collections, inverted loops, and arbitrary expressions are unsupported.
+Use the definitions in `packages/core/src/template/field-definition.ts` as the source of truth.
 Prefer small and explicit models.
 
 ---
@@ -317,14 +337,11 @@ into the core.
 Conceptually:
 
 ```ts
-type PrimitiveValue =
-  | string
-  | number
-  | boolean
-  | Date
-  | null;
-
-type RecordData = Record<string, PrimitiveValue>;
+type ScalarValue = string | number | boolean | Date | null;
+type CollectionItemData = Readonly<Record<string, ScalarValue>>;
+type CollectionData = readonly CollectionItemData[];
+type RecordValue = ScalarValue | CollectionData;
+type RecordData = Readonly<Record<string, RecordValue>>;
 ```
 
 The tool does not care whether a record represents:
@@ -348,7 +365,7 @@ CSV
 Excel/XLSX
 ```
 
-All input sources should eventually normalize into the same:
+All input sources normalize into the same:
 
 ```text
 RecordData[]
@@ -364,7 +381,7 @@ The renderer must not need to know whether records originated from the UI, CLI, 
 
 Manual input is intended for small datasets.
 
-The desktop UI may dynamically generate controls based on discovered template fields and type hints.
+The desktop UI dynamically generates scalar controls and collection item editors from discovered template fields and type hints.
 
 Examples:
 
@@ -373,10 +390,11 @@ string  -> text input
 number  -> numeric input
 boolean -> checkbox/switch
 date    -> date picker
+datetime -> date/time picker
 option  -> select
 ```
 
-The CLI, if implemented, should remain simple.
+CLI manual input uses repeated `--set field=value` arguments for one scalar record. It does not accept collection arrays or JSON records; use XLSX for CLI collections.
 
 Do not build an interactive terminal UI unless a real requirement appears.
 
@@ -384,7 +402,7 @@ Do not build an interactive terminal UI unless a real requirement appears.
 
 ## 13. CSV Input
 
-CSV columns are matched to template fields **by name**.
+CSV supports scalar-only templates. It accepts UTF-8 (with or without a BOM) and GBK. CSV columns are matched to template fields **by name**.
 
 Column position must have no semantic meaning.
 
@@ -447,11 +465,17 @@ If formula cells are supported, use an existing cached/calculated result when av
 
 If no usable result exists, return an explicit error rather than attempting to evaluate arbitrary Excel formulas.
 
+Only `.xlsx` is supported. Use the first visible worksheet as the root by default, or select a visible root worksheet by name.
+
+For collection templates, the root sheet contains `__templify_id` and root scalar columns. Each collection has a visible worksheet whose name exactly matches the loop, containing `__templify_parent_id` and child scalar columns. Root IDs must be unique direct text values; child rows link by those IDs. Relationship cells cannot be formulas. Missing collection sheets, blank or duplicate root IDs, and unmatched parent IDs are errors. A headers-only collection sheet represents an empty collection.
+
+Keep this protocol in `packages/tabular-input`; do not add collection assembly to command handlers or Vue components.
+
 ---
 
 ## 15. File Input Validation
 
-Recommended behavior:
+Implemented behavior:
 
 ### Missing required template field column
 
@@ -471,7 +495,7 @@ Error
 Ignore
 ```
 
-Optionally expose a warning in the UI.
+Emit diagnostics for unused columns and worksheets; keep diagnostics separate from generated data.
 
 ### Empty rows
 
@@ -491,7 +515,11 @@ Templify uses independent per-record document generation:
 one RecordData -> one rendered DOCX
 ```
 
-Exactly one record may be written to one caller-named DOCX file. One or more records may be written as separate DOCX files under a directory or as separate DOCX entries in an archive.
+Exactly one record may be written to one caller-named DOCX or PDF file. One or more records may be written as separate documents under a directory or in an archive.
+
+PDF conversion derives from the rendered DOCX. Desktop and CLI select one per-record format (`docx` or `pdf`) and may add an ordered merged PDF in directory or archive mode. DOCX plus merged PDF keeps individual PDF intermediates in memory. Do not advertise simultaneous per-record DOCX and PDF export as an adapter feature.
+
+The rendered DOCX is authoritative. PDF previews and exports may have font, formatting, or pagination errors, even with embedded fonts. Keep the visible PDF notice; conversion diagnostics cannot guarantee fidelity. Direct printing is not implemented.
 
 Each record produces one document:
 
@@ -539,7 +567,7 @@ type OutputMode =
 
 ## 18. Path Templates
 
-Directory and archive modes may support user-defined output path templates.
+Directory and archive modes support user-defined output path templates. Root scalar placeholders and `{$index}` (one-based accepted record index) are supported; collection children are not path values.
 
 Example:
 
@@ -693,7 +721,7 @@ Default behavior should be:
 error
 ```
 
-The tool should not silently overwrite an existing file unless the user explicitly selected overwrite behavior.
+The tool should not silently overwrite an existing file unless the user explicitly selected overwrite behavior. Duplicate paths within the same output plan remain errors even with overwrite. Protect the template, input, and render-options files from output replacement.
 
 Automatic renaming such as:
 
@@ -709,78 +737,55 @@ is a possible future enhancement but is not required for version 1.
 
 ## 22. Architecture Direction
 
-Keep the core independent from infrastructure and presentation concerns.
-
-A reasonable conceptual structure is:
+Current workspace boundaries:
 
 ```text
-src/
-├── application/
-├── template/
-├── record/
-├── render/
-├── output/
-├── input/
-├── cli/
-└── desktop/
+apps/
+├── desktop/          Electron Main, preload, Nuxt/Vue renderer
+└── cli/              inspect and generate adapters
+packages/
+├── core/             in-memory preparation, normalization, planning, rendering, packaging
+├── tabular-input/    CSV/XLSX parsing and input-template export
+└── node-output/      filesystem publication and Node PDF font handling
+tests/                cross-package integration fixtures and checks
+docs/
+├── decisions/        lasting architecture and product decisions
+└── demos/            synthetic templates, workbook, bilingual usage guides
 ```
 
-The exact layout may evolve.
+Keep the core independent from infrastructure and presentation concerns. The core uses `Uint8Array`, does not access the filesystem, and does not depend on Electron. Keep Node filesystem concerns in `node-output` and adapters.
 
-Do not introduce excessive layering merely for architectural purity.
-
-This is a small application.
-
-Prefer clear module boundaries over elaborate DDD patterns.
+Do not introduce excessive layering merely for architectural purity. This is a small application. Prefer clear module boundaries over elaborate DDD patterns.
 
 ---
 
-## 23. Suggested Core Abstractions
+## 23. Staged Core Pipeline
 
-Possible boundaries include:
-
-```ts
-interface TemplateInspector {
-  inspect(template: Buffer): Promise<FieldDefinition[]>;
-}
-
-interface DocumentRenderer {
-  render(
-    template: Buffer,
-    context: Record<string, unknown>
-  ): Promise<Buffer>;
-}
-```
-
-Input sources conceptually produce:
-
-```ts
-RecordData[]
-```
-
-Output strategies consume rendered documents.
-
-For example:
+Use the existing staged APIs rather than introducing another orchestration layer:
 
 ```text
-ManualInputSource
-CsvInputSource
-ExcelInputSource
-        ↓
-    RecordData[]
-        ↓
-    RenderPlanner
-        ↓
- DocumentRenderer
-        ↓
- RenderedDocument[]
-        ↓
- DirectoryOutputWriter / ArchiveOutputWriter
+prepareTemplate
+    ↓
+prepareGeneration (normalize input, validate formatting, plan and bind generation)
+    ↓
+derivePublicationManifest
+    ↓
+createPublicationPlan / preflightPublication (Node adapter)
+    ↓
+generateArtifacts
+    ↓
+packageArtifacts
+    ↓
+publishArtifacts (Node adapter)
 ```
 
-These interfaces are guidelines, not mandatory abstractions.
+Core owns in-memory DOCX/PDF generation and ZIP packaging. `node-output` owns destination resolution, filesystem conflict checks, and publication. Preflight must happen before expensive rendering. CLI dry runs stop after preflight; they do not establish PDF fidelity or rendering success.
 
-Do not create interfaces that have only speculative future value.
+Prepared runtime handles are opaque; serializable definitions and plans remain separate. APIs return structured `StageResult` values with errors and warnings. Diagnostics are presentation-neutral; translate or format them in adapters.
+
+Publication uses same-directory temporary files, replacement backups, and best-effort rollback. It is not a crash-safe filesystem transaction; do not promise atomic multi-file publication.
+
+See [staged-core-pipeline.md](docs/decisions/staged-core-pipeline.md). Do not create interfaces that have only speculative future value.
 
 ---
 
@@ -807,12 +812,13 @@ A future replacement of the DOCX rendering implementation should not require rew
 
 The desktop application is the primary interaction surface.
 
-Planned stack:
+Implemented stack:
 
 ```text
 Electron
-Vue 3
+Nuxt 4 / Vue 3
 TDesign
+Pinia
 ```
 
 Keep Electron-specific filesystem and Node capabilities outside ordinary Vue components where practical.
@@ -828,11 +834,19 @@ Filesystem
 
 Do not move business logic into Vue components.
 
+The workflow is template selection, data preparation, then output configuration. Template/data/format changes invalidate affected plans and previews. Single-file mode requires exactly one record.
+
+Settings persist interface language and type-level format defaults, not templates, records, or task history. Field-specific rules belong to the current template and clear when it changes or a new task starts.
+
+Shared formatting supports boolean, date, datetime, and number defaults plus field rules. A field rule replaces the entire type default rather than merging it. Paths identify root fields or one-level collection children. Formatting changes rendered document text, not filenames or input values. Follow [render-formatting.md](docs/decisions/render-formatting.md).
+
+PDF font resolution gives embedded fonts precedence. Desktop can provide requested local font faces through IPC; Node supplies a persistent remote cache and remote fallback. Do not persist local font bytes into that cache. Fonts are not bundled; uncached remote fallback requires network access. See [desktop-pdf-and-fonts.md](docs/decisions/desktop-pdf-and-fonts.md).
+
 ---
 
 ## 26. CLI
 
-CLI support is optional but should remain possible.
+The CLI provides `inspect` and `generate`. Template inspection can export table/JSON output or CSV/XLSX input templates. Generation supports manual scalar values, CSV/XLSX, shared render options, dry runs, DOCX/PDF, and merged PDFs.
 
 The CLI is a thin adapter around the same application services used by the desktop application.
 
@@ -891,12 +905,15 @@ XLSX
 Important cases include:
 
 * simple string replacement,
-* date fields,
+* date and datetime fields,
 * number fields,
 * boolean fields,
 * option fields,
 * multiple template fields,
 * repeated fields,
+* one-level collections, ID-linked XLSX rows, and unsupported nesting,
+* type defaults and complete field-format overrides,
+* PDF conversion, ordered merge, and injected font providers,
 * missing input columns,
 * duplicate spreadsheet columns,
 * reordered spreadsheet columns,
@@ -927,7 +944,11 @@ Use English for:
 * comments,
 * commit messages.
 
-User-facing localization strategy can be decided separately.
+Desktop UI translations are English (`en-US`) and Simplified Chinese (`zh-CN`). Output formatting locales are a separate concern (`en` and `zh-CN`); do not couple interface language to document formatting.
+
+Maintain English `README.md` and Simplified Chinese `README.zh-CN.md` at the repository root, in `apps/cli`, and in `docs/demos`. Keep commands, supported behavior, limitations, and release status aligned between translations. Other development documentation defaults to English.
+
+Use synthetic or redacted demo/fixture data. Keep lasting decisions in `docs/decisions`; do not recreate `docs/plans` for routine execution plans.
 
 Prefer:
 
@@ -966,35 +987,17 @@ Conversely, do not introduce a large framework for a trivial feature.
 
 ---
 
-## 31. Development Priorities
+## 31. Maintenance and Release Priorities
 
-The initial end-to-end milestone should be:
+Desktop and CLI already implement the end-to-end workflow. Current work should focus on release preparation, documentation, and bug fixes. Preserve existing behavior and avoid speculative feature expansion.
 
-```text
-template.docx
-    ↓
-inspect fields
-    ↓
-create one record
-    ↓
-render
-    ↓
-output.docx
-```
+Use Node.js >= 24.11.0 and the root `packageManager` pnpm version. Run checks appropriate to the change; `pnpm check` combines formatting, lint, typechecking, tests, and builds. For CLI packaging changes, also run `pnpm --filter @templify/cli smoke` to check the packed and installed executable. Desktop UI changes may require the dedicated `ui:check` and manual acceptance.
 
-After this works reliably, expand incrementally:
+The existing GitHub Actions workflow checks pushes to `main` and pull requests on Windows and Linux. Desktop currently has local Windows NSIS configuration; it has no installer/release workflow, configured signing, or automatic updates. CLI and Desktop package versions are `0.0.0`, and CLI is still private. Do not describe npm packages or release installers as available until they are actually published.
 
-```text
-multiple records
-→ directory output
-→ archive output
-→ CSV input
-→ Excel input
-→ desktop UI
-→ optional CLI
-```
+The intended CLI release process is manual npm publication after metadata, privacy flags, versions, and checks are ready. A manually triggered Desktop packaging workflow and manual GitHub Release publication have been discussed but are not implemented. Do not add automatic publication or expand CI/CD unless requested.
 
-Prefer working vertical slices over implementing all abstractions before the first rendered document exists.
+Installer download, installation, and demo acceptance on the user's local machine remain release checks. A source build or unpacked packaging check does not replace them.
 
 ---
 
