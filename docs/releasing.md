@@ -10,7 +10,7 @@ and builds the Windows x64 NSIS installer on demand. CLI publication uses npm lo
    need separate releases.
 2. Use a prerelease version such as `1.0.0-preview.0` for a preview, or `1.0.0` for
    a stable release. Increment the preview suffix for another published preview.
-3. Run `pnpm check` and `pnpm --filter @templify/cli smoke`.
+3. Run `pnpm check` and `pnpm --filter @origin-coding/templify smoke`.
 4. Commit the changes and merge the release preparation into `main`.
 
 Never change the contents of an already published version. Use a new version for fixes.
@@ -64,22 +64,32 @@ secrets and has only read access to repository contents.
 ## Publish the CLI manually
 
 Use a clean checkout of the same release commit with Node.js >= 24.11.0 and the
-root `packageManager` pnpm version. Verify that the publishing npm account can
-publish to the `@templify` scope. Build and check the package:
+root `packageManager` pnpm version. The public CLI package is
+`@origin-coding/templify`, owned by the npm user `origin-coding`; a separate npm
+organization is not required. Internal `@templify/*` workspace packages remain
+private. Build and check the package:
 
 ```shell
 pnpm install --frozen-lockfile
 pnpm check
-pnpm --filter @templify/cli smoke
-pnpm --filter @templify/cli exec npm publish --dry-run --access public --tag latest
+pnpm --filter @origin-coding/templify smoke
+pnpm --filter @origin-coding/templify exec npm publish --dry-run --access public --tag latest
 ```
 
-Inspect the dry-run package contents and metadata, then log in and publish:
+Inspect the dry-run package contents and metadata. Actual publication is performed
+by the maintainer in an interactive terminal, completing npm's authentication and
+2FA prompts. Agents prepare and verify the package but do not run the actual
+publishing command or automate authentication. The maintainer runs:
 
 ```shell
 npm login
-pnpm --filter @templify/cli exec npm publish --access public --tag latest
+npm whoami
+pnpm --filter @origin-coding/templify exec npm publish --access public --tag latest
 ```
+
+Confirm that `npm whoami` returns `origin-coding` before publishing. Keep the
+account's interactive publishing requirements enabled; do not add publishing
+tokens or automatic npm publication to Actions.
 
 Always pass `--tag preview` for preview releases so they do not replace `latest`.
 For a stable release, use `--tag latest` as above. Desktop and CLI are published
@@ -88,7 +98,7 @@ separately; completing one does not publish the other.
 After publication, install and verify the published executable:
 
 ```shell
-npm install --global @templify/cli@1.0.0
+npm install --global @origin-coding/templify@1.0.0
 templify --version
 templify --help
 ```

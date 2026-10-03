@@ -116,7 +116,7 @@ pnpm --filter @templify/desktop exec electron-builder --dir --win --publish neve
 从源码试用 CLI：
 
 ```shell
-pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @templify/cli build
+pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @origin-coding/templify build
 node apps/cli/dist/index.js inspect docs/demos/workshop-registration.docx
 ```
 

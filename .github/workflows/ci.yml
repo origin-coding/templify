@@ -38,4 +38,4 @@ jobs:
         run: pnpm check
 
       - name: Check packed CLI
-        run: pnpm --filter @templify/cli smoke
+        run: pnpm --filter @origin-coding/templify smoke
