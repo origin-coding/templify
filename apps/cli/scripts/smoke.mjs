@@ -33,7 +33,7 @@ function run(program, args, cwd = cliRoot, expectedStatus = 0, options = {}) {
 
 function runPnpm(args) {
   const entry = process.env.npm_execpath;
-  assert.ok(entry, 'Run the smoke check with pnpm --filter @templify/cli smoke.');
+  assert.ok(entry, 'Run the smoke check with pnpm --filter @origin-coding/templify smoke.');
   return /\.(?:cjs|mjs|js)$/iu.test(entry)
     ? run(process.execPath, [entry, ...args])
     : run(entry, args);
@@ -83,11 +83,12 @@ try {
     '--no-fund',
     path.join(temp, tarball),
   ]);
-  const bin = path.join(install, 'node_modules', '@templify', 'cli', 'dist', 'index.js');
-  const installedPackage = JSON.parse(
-    await readFile(path.join(install, 'node_modules', '@templify', 'cli', 'package.json'), 'utf8'),
-  );
   const sourcePackage = JSON.parse(await readFile(path.join(cliRoot, 'package.json'), 'utf8'));
+  const installedRoot = path.join(install, 'node_modules', ...sourcePackage.name.split('/'));
+  const bin = path.join(installedRoot, 'dist', 'index.js');
+  const installedPackage = JSON.parse(
+    await readFile(path.join(installedRoot, 'package.json'), 'utf8'),
+  );
   const installedCommand = path.join(install, 'node_modules', '.bin', 'templify');
   const installedVersion =
     process.platform === 'win32'
@@ -100,9 +101,10 @@ try {
         )
       : run(installedCommand, ['--version'], install);
   assert.equal(installedVersion.stdout.trim(), sourcePackage.version);
+  assert.equal(installedPackage.name, sourcePackage.name);
   assert.equal(installedPackage.bin.templify, 'dist/index.js');
   assert.equal(
-    await readFile(path.join(install, 'node_modules', '@templify', 'cli', 'LICENSE'), 'utf8'),
+    await readFile(path.join(installedRoot, 'LICENSE'), 'utf8'),
     await readFile(path.join(cliRoot, '../../LICENSE'), 'utf8'),
   );
   const template = path.join(temp, 'template.docx');

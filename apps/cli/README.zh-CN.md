@@ -4,6 +4,8 @@
 
 从命令行参数、CSV 或 XLSX 填充 DOCX 模板。`templify` 提供 `inspect` 和 `generate`，与桌面应用使用同一套核心服务。
 
+npm 包名为 `@origin-coding/templify`，执行命令为 `templify`。
+
 ## 从源码运行
 
 需要 **Node.js 24.11.0 或更新版本**和 **pnpm 11**，pnpm 使用根目录 `packageManager` 字段指定的版本。
@@ -11,7 +13,7 @@
 
 ```shell
 pnpm install
-pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @templify/cli build
+pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @origin-coding/templify build
 node apps/cli/dist/index.js --help
 ```
 
@@ -205,13 +207,13 @@ templify generate equipment-checkout.docx --input equipment-checkout.xlsx --outp
 完成上方源码构建后，在仓库根目录操作。用单独的终端启动 CLI 构建监听：
 
 ```shell
-pnpm --filter @templify/cli dev
+pnpm --filter @origin-coding/templify dev
 ```
 
 监听完成构建后，再执行 CLI 命令。检查打包后的命令：
 
 ```shell
-pnpm --filter @templify/cli smoke
+pnpm --filter @origin-coding/templify smoke
 ```
 
 `smoke` 会打包 CLI，在隔离目录安装并检查安装后的命令。

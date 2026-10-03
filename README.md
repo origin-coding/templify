@@ -139,7 +139,7 @@ application directory rather than an installer.
 Try the CLI from source:
 
 ```shell
-pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @templify/cli build
+pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @origin-coding/templify build
 node apps/cli/dist/index.js inspect docs/demos/workshop-registration.docx
 ```
 

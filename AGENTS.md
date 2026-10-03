@@ -991,11 +991,13 @@ Conversely, do not introduce a large framework for a trivial feature.
 
 Desktop and CLI already implement the end-to-end workflow. Current work should focus on release preparation, documentation, and bug fixes. Preserve existing behavior and avoid speculative feature expansion.
 
-Use Node.js >= 24.11.0 and the root `packageManager` pnpm version. Run checks appropriate to the change; `pnpm check` combines formatting, lint, typechecking, tests, and builds. For CLI packaging changes, also run `pnpm --filter @templify/cli smoke` to check the packed and installed executable. Desktop UI changes may require the dedicated `ui:check` and manual acceptance.
+Use Node.js >= 24.11.0 and the root `packageManager` pnpm version. Run checks appropriate to the change; `pnpm check` combines formatting, lint, typechecking, tests, and builds. For CLI packaging changes, also run `pnpm --filter @origin-coding/templify smoke` to check the packed and installed executable. Desktop UI changes may require the dedicated `ui:check` and manual acceptance.
 
 The CI workflow checks pushes to `main` and pull requests on Windows and Linux, including the packed CLI smoke check. The manually triggered `Desktop package` workflow runs checks and builds an unsigned Windows x64 NSIS installer, uploading it with SHA-256 checksums and build commit information. It does not create tags or publish Releases. Signing and automatic updates are not configured. Do not describe npm packages or release installers as available until they are actually published.
 
 Keep the root, Desktop, and CLI product versions aligned. Internal shared packages stay private and do not need independent releases. The CLI is publishable and has public npm access metadata; publication remains manual. Use `--tag preview` for preview npm releases and mark GitHub previews as pre-releases. Follow [releasing.md](docs/releasing.md), publish the exact accepted installer, and tag the recorded build commit. Do not add automatic publication or expand CI/CD unless requested.
+
+The public CLI package is `@origin-coding/templify`, owned by the npm user `origin-coding`; its executable remains `templify`. Internal private workspace packages retain the `@templify` scope. The maintainer performs npm publication through an interactive authentication flow. Agents may prepare, pack, install, and verify the package, but must not execute an actual npm publish or automate the maintainer's login/2FA flow.
 
 Use `pnpm --filter @templify/desktop package:win` for local and Actions Windows x64 installer builds. This entry builds Desktop and shared packages before running electron-builder without publication.
 

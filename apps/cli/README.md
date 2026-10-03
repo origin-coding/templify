@@ -5,6 +5,8 @@
 Fill DOCX templates from command-line values, CSV, or XLSX. The `templify`
 executable provides `inspect` and `generate` using the same core as Desktop.
 
+The npm package name is `@origin-coding/templify`; the executable name is `templify`.
+
 ## Run from source
 
 Requirements: Node.js **24.11.0 or later** and pnpm **11**, using the version pinned
@@ -12,7 +14,7 @@ in the root `packageManager` field. Run from the repository root:
 
 ```shell
 pnpm install
-pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @templify/cli build
+pnpm --filter @templify/core --filter @templify/node-output --filter @templify/tabular-input --filter @origin-coding/templify build
 node apps/cli/dist/index.js --help
 ```
 
@@ -227,13 +229,13 @@ After the source build above, run the CLI build watcher from the repository root
 in a separate terminal:
 
 ```shell
-pnpm --filter @templify/cli dev
+pnpm --filter @origin-coding/templify dev
 ```
 
 Rerun commands after it rebuilds. To check the packaged executable:
 
 ```shell
-pnpm --filter @templify/cli smoke
+pnpm --filter @origin-coding/templify smoke
 ```
 
 `smoke` packs the CLI,

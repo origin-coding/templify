@@ -1,5 +1,5 @@
 {
-  "name": "@templify/cli",
+  "name": "@origin-coding/templify",
   "version": "1.0.0",
   "description": "Fill DOCX templates from command-line values, CSV, and XLSX.",
   "license": "Apache-2.0",
