@@ -1,6 +1,6 @@
 {
   "name": "@templify/cli",
-  "version": "1.0.0-preview.0",
+  "version": "1.0.0",
   "description": "Fill DOCX templates from command-line values, CSV, and XLSX.",
   "license": "Apache-2.0",
   "repository": {

@@ -999,6 +999,8 @@ Keep the root, Desktop, and CLI product versions aligned. Internal shared packag
 
 Use `pnpm --filter @templify/desktop package:win` for local and Actions Windows x64 installer builds. This entry builds Desktop and shared packages before running electron-builder without publication.
 
+Desktop logo sources and exported PNG/ICO assets live in `assets/logos`. Use the colored logo for the application icon, keep the PNG and ICO aligned with the SVG source, and preserve the transparent background and original aspect ratio. The window loads the PNG from repository assets during development and packaged resources after installation; Windows packaging uses the ICO for the executable, installer, and uninstaller.
+
 Installer download, installation, and demo acceptance on the user's local machine remain release checks. A source build or unpacked packaging check does not replace them.
 
 ---

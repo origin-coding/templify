@@ -1,6 +1,6 @@
 {
   "name": "@templify/desktop",
-  "version": "1.0.0-preview.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Fill DOCX templates from manual records, CSV, and XLSX.",
   "license": "Apache-2.0",
@@ -48,10 +48,17 @@
       "package.json"
     ],
     "asar": true,
+    "extraResources": [
+      {
+        "from": "../../assets/logos/templify-icon.png",
+        "to": "templify-icon.png"
+      }
+    ],
     "nsis": {
       "artifactName": "Templify-${version}-windows-${arch}-setup.${ext}"
     },
     "win": {
+      "icon": "../../assets/logos/templify-icon.ico",
       "target": [
         "nsis"
       ]
