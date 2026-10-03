@@ -116,7 +116,17 @@ The desktop development command builds shared packages and starts watchers,
 Nuxt, and Electron. Electron downloads its runtime separately; if the download
 is unavailable, configure `ELECTRON_MIRROR` before starting.
 
-Build desktop assets and create an unpacked Windows application:
+Build a Windows x64 NSIS installer:
+
+```shell
+pnpm --filter @templify/desktop package:win
+```
+
+The command builds Desktop and its shared packages before packaging. The installer
+is written to `apps/desktop/release/`. See the [release guide](docs/releasing.md)
+for the manual Actions workflow and publication steps.
+
+To create an unpacked Windows application for development:
 
 ```shell
 pnpm --filter @templify/desktop build
@@ -149,6 +159,7 @@ See [Contributing](CONTRIBUTING.md) for checks and development guidance.
 | `docs/decisions`         | Lasting architecture and product decisions.                                        |
 
 - [CLI usage](apps/cli/README.md)
+- [Release workflow](docs/releasing.md)
 - [Shared format configuration](docs/decisions/render-formatting.md)
 - [Core pipeline](docs/decisions/staged-core-pipeline.md)
 - [PDF preview and fonts](docs/decisions/desktop-pdf-and-fonts.md)

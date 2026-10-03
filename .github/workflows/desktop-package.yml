@@ -1,0 +1,88 @@
+name: Desktop package
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-package-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows x64 installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Read product version
+        id: version
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          foreach ($manifest in @('apps/desktop/package.json', 'apps/cli/package.json')) {
+            $appVersion = (Get-Content $manifest -Raw | ConvertFrom-Json).version
+            if ($appVersion -ne $version) {
+              throw "Version mismatch: $manifest has $appVersion, expected $version."
+            }
+          }
+          if ($version -eq '0.0.0') { throw 'Set the product version before packaging.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - name: Run repository checks
+        run: pnpm check
+
+      - name: Check packed CLI
+        run: pnpm --filter @templify/cli smoke
+
+      - name: Build installer
+        run: pnpm --filter @templify/desktop package:win
+
+      - name: Record build and checksums
+        run: |
+          $outputDirectory = 'apps/desktop/release'
+          $installers = @(Get-ChildItem -LiteralPath $outputDirectory -File -Filter '*-windows-x64-setup.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one Windows x64 installer.' }
+          $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          $buildInfo = [ordered]@{
+            version = $version
+            commit = $env:GITHUB_SHA
+            platform = 'windows'
+            architecture = 'x64'
+            runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          }
+          $infoPath = Join-Path $outputDirectory 'build-info.json'
+          $buildInfo | ConvertTo-Json | Set-Content -LiteralPath $infoPath -Encoding utf8
+          $checksums = foreach ($file in @($installers[0].FullName, $infoPath)) {
+            $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $(Split-Path $file -Leaf)"
+          }
+          $checksums | Set-Content -LiteralPath (Join-Path $outputDirectory 'SHA256SUMS.txt') -Encoding utf8
+          "Version: $version`nCommit: $env:GITHUB_SHA`nInstaller: $($installers[0].Name)" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Templify-${{ steps.version.outputs.version }}-windows-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            apps/desktop/release/*-windows-x64-setup.exe
+            apps/desktop/release/build-info.json
+            apps/desktop/release/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

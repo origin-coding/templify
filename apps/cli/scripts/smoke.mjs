@@ -54,6 +54,17 @@ try {
     path.join(temp, tarball),
   ]);
   const bin = path.join(install, 'node_modules', '@templify', 'cli', 'dist', 'index.js');
+  const installedPackage = JSON.parse(
+    await readFile(path.join(install, 'node_modules', '@templify', 'cli', 'package.json'), 'utf8'),
+  );
+  const sourcePackage = JSON.parse(await readFile(path.join(cliRoot, 'package.json'), 'utf8'));
+  const installedCommand = path.join(install, 'node_modules', '.bin', 'templify');
+  assert.equal(run(installedCommand, ['--version'], install).stdout.trim(), sourcePackage.version);
+  assert.equal(installedPackage.bin.templify, 'dist/index.js');
+  assert.equal(
+    await readFile(path.join(install, 'node_modules', '@templify', 'cli', 'LICENSE'), 'utf8'),
+    await readFile(path.join(cliRoot, '../../LICENSE'), 'utf8'),
+  );
   const template = path.join(temp, 'template.docx');
   await writeFile(template, createDocx([['Hello {name}!']]));
 

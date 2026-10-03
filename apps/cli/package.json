@@ -1,14 +1,24 @@
 {
   "name": "@templify/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "1.0.0-preview.0",
+  "description": "Fill DOCX templates from command-line values, CSV, and XLSX.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/origin-coding/templify.git",
+    "directory": "apps/cli"
+  },
   "bin": {
-    "templify": "./dist/index.js"
+    "templify": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.zh-CN.md"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",

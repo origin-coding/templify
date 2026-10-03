@@ -219,6 +219,8 @@ pnpm --filter @templify/cli smoke
 
 仓库检查和开发约定见[贡献指南](https://github.com/origin-coding/templify/blob/main/CONTRIBUTING.md)。
 
+手动发布到 npm 及预发布标签的使用方式见[发布指南](https://github.com/origin-coding/templify/blob/main/docs/releasing.md)。
+
 ## 许可证
 
 [Apache License 2.0](https://github.com/origin-coding/templify/blob/main/LICENSE)。
