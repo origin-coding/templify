@@ -62,4 +62,5 @@ Fonts are not bundled and there are no user-facing font strategy settings.
 Uncached remote fonts require network access. Split out `packages/pdf-fonts`
 only if additional backends, PDF engines, or font-management complexity warrant it.
 
-Render-option integration in Desktop and CLI is a separate future change.
+Shared render options are implemented in Desktop and CLI; see
+[render-formatting.md](render-formatting.md).
