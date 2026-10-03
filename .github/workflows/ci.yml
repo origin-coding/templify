@@ -36,3 +36,6 @@ jobs:
 
       - name: Run repository checks
         run: pnpm check
+
+      - name: Check packed CLI
+        run: pnpm --filter @templify/cli smoke

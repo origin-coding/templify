@@ -244,6 +244,9 @@ packages separately.
 See the [contribution guide](https://github.com/origin-coding/templify/blob/main/CONTRIBUTING.md)
 for repository checks and development conventions.
 
+For manual npm publication and preview tags, follow the
+[release guide](https://github.com/origin-coding/templify/blob/main/docs/releasing.md).
+
 ## License
 
 [Apache License 2.0](https://github.com/origin-coding/templify/blob/main/LICENSE).

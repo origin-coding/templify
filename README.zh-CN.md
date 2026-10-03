@@ -95,7 +95,16 @@ pnpm --filter @templify/desktop dev
 桌面开发命令会构建共享包，启动监听、Nuxt 和 Electron。
 Electron 运行时需要单独下载；下载源不可用时，可在启动前配置环境变量 `ELECTRON_MIRROR`。
 
-构建桌面资源，并创建未打包为安装程序的 Windows 应用目录：
+构建 Windows x64 NSIS 安装包：
+
+```shell
+pnpm --filter @templify/desktop package:win
+```
+
+此命令会先构建 Desktop 及共享包，再生成安装包，产物位于 `apps/desktop/release/`。
+手动触发 Actions 和发布的步骤见[发布指南](docs/releasing.md)。
+
+开发时，如需创建未打包为安装程序的 Windows 应用目录：
 
 ```shell
 pnpm --filter @templify/desktop build
@@ -127,6 +136,7 @@ node apps/cli/dist/index.js inspect docs/demos/workshop-registration.docx
 | `docs/decisions`         | 长期架构和产品决策。                            |
 
 - [CLI 使用说明](apps/cli/README.zh-CN.md)
+- [发布流程](docs/releasing.md)
 - [共享格式配置](docs/decisions/render-formatting.md)
 - [核心处理流水线](docs/decisions/staged-core-pipeline.md)
 - [PDF 预览与字体](docs/decisions/desktop-pdf-and-fonts.md)
