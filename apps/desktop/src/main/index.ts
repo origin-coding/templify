@@ -58,6 +58,9 @@ function createWindow(): BrowserWindow {
     minWidth: 760,
     minHeight: 580,
     title: 'Templify',
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, 'templify-icon.png')
+      : path.join(app.getAppPath(), '../../assets/logos/templify-icon.png'),
     webPreferences: {
       preload: path.join(currentDirectory, '../preload/preload.cjs'),
       contextIsolation: true,

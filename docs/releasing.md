@@ -37,7 +37,7 @@ Publication is a separate manual step.
    with the checksum file, for example in PowerShell:
 
    ```powershell
-   Get-FileHash ./Templify-1.0.0-preview.0-windows-x64-setup.exe -Algorithm SHA256
+   Get-FileHash ./Templify-1.0.0-windows-x64-setup.exe -Algorithm SHA256
    ```
 
 4. Install and launch the downloaded installer on a Windows x64 computer. Run both
@@ -51,11 +51,12 @@ prompt. Packaging success does not replace installation and demo acceptance.
 
 ## Publish a GitHub Release
 
-After acceptance, create a tag such as `v1.0.0-preview.0` at the **commit recorded
+After acceptance, create a tag such as `v1.0.0` at the **commit recorded
 in `build-info.json`**, rather than at whatever commit is now the tip of `main`.
 Create a GitHub Release from that tag and upload the exact installer you tested,
 along with its checksum and build information. Describe the changes and relevant
 limitations. For preview versions, select **Set as a pre-release**.
+For stable versions, leave the pre-release setting off.
 
 The packaging workflow does not create tags or Releases. It needs no publishing
 secrets and has only read access to repository contents.
@@ -70,24 +71,24 @@ publish to the `@templify` scope. Build and check the package:
 pnpm install --frozen-lockfile
 pnpm check
 pnpm --filter @templify/cli smoke
-pnpm --filter @templify/cli exec npm publish --dry-run --access public --tag preview
+pnpm --filter @templify/cli exec npm publish --dry-run --access public --tag latest
 ```
 
 Inspect the dry-run package contents and metadata, then log in and publish:
 
 ```shell
 npm login
-pnpm --filter @templify/cli exec npm publish --access public --tag preview
+pnpm --filter @templify/cli exec npm publish --access public --tag latest
 ```
 
 Always pass `--tag preview` for preview releases so they do not replace `latest`.
-For a stable release, use `--tag latest` instead. Desktop and CLI are published
+For a stable release, use `--tag latest` as above. Desktop and CLI are published
 separately; completing one does not publish the other.
 
-After preview publication, install and verify the published executable:
+After publication, install and verify the published executable:
 
 ```shell
-npm install --global @templify/cli@1.0.0-preview.0
+npm install --global @templify/cli@1.0.0
 templify --version
 templify --help
 ```
