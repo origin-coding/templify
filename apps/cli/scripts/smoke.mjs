@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir, mkdtemp, mkdir, rm, writeFile, link } from 'node:fs/promises';
+import { existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -15,13 +16,11 @@ const PizZip = requireCore('pizzip');
 const { PDFDocument } = requireCore('@cantoo/pdf-lib');
 const temp = await mkdtemp(path.join(tmpdir(), 'templify-cli-smoke-'));
 
-function run(program, args, cwd = cliRoot, expectedStatus = 0) {
-  const command =
-    process.platform === 'win32' && program !== process.execPath ? `${program}.cmd` : program;
-  const result = spawnSync(command, args, {
+function run(program, args, cwd = cliRoot, expectedStatus = 0, options = {}) {
+  const result = spawnSync(program, args, {
+    ...options,
     cwd,
     encoding: 'utf8',
-    shell: process.platform === 'win32' && program !== process.execPath,
   });
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(
@@ -32,19 +31,50 @@ function run(program, args, cwd = cliRoot, expectedStatus = 0) {
   return result;
 }
 
+function runPnpm(args) {
+  const entry = process.env.npm_execpath;
+  assert.ok(entry, 'Run the smoke check with pnpm --filter @templify/cli smoke.');
+  return /\.(?:cjs|mjs|js)$/iu.test(entry)
+    ? run(process.execPath, [entry, ...args])
+    : run(entry, args);
+}
+
+function npmCliPath() {
+  const directories = [
+    path.dirname(process.execPath),
+    ...(process.env.PATH ?? '').split(path.delimiter),
+  ];
+  for (const directory of directories) {
+    if (!directory) continue;
+    for (const candidate of [
+      path.join(directory, 'node_modules/npm/bin/npm-cli.js'),
+      path.resolve(directory, '../lib/node_modules/npm/bin/npm-cli.js'),
+    ]) {
+      if (existsSync(candidate)) return candidate;
+    }
+    const executable = path.join(directory, 'npm');
+    if (existsSync(executable)) {
+      const resolved = realpathSync(executable);
+      if (path.basename(resolved) === 'npm-cli.js') return resolved;
+    }
+  }
+  throw new Error('npm CLI not found. Install Node.js with npm before running the smoke check.');
+}
+
 try {
   const entry = path.join(cliRoot, 'dist', 'index.js');
   const built = await readFile(entry, 'utf8');
   assert.ok(built.startsWith('#!/usr/bin/env node\n'));
   assert.doesNotMatch(built, /(?:from\s*|require\()['"]@templify\//u);
 
-  run('pnpm', ['pack', '--pack-destination', temp]);
+  runPnpm(['pack', '--pack-destination', temp]);
   const tarball = (await readdir(temp)).find((name) => name.endsWith('.tgz'));
   assert.ok(tarball);
 
   const install = path.join(temp, 'installed');
   await mkdir(install);
-  run('npm', [
+  run(process.execPath, [
+    npmCliPath(),
     'install',
     '--prefix',
     install,
@@ -59,7 +89,17 @@ try {
   );
   const sourcePackage = JSON.parse(await readFile(path.join(cliRoot, 'package.json'), 'utf8'));
   const installedCommand = path.join(install, 'node_modules', '.bin', 'templify');
-  assert.equal(run(installedCommand, ['--version'], install).stdout.trim(), sourcePackage.version);
+  const installedVersion =
+    process.platform === 'win32'
+      ? run(
+          process.env.ComSpec ?? 'cmd.exe',
+          ['/d', '/s', '/c', `""${installedCommand}.cmd" --version"`],
+          install,
+          0,
+          { windowsVerbatimArguments: true },
+        )
+      : run(installedCommand, ['--version'], install);
+  assert.equal(installedVersion.stdout.trim(), sourcePackage.version);
   assert.equal(installedPackage.bin.templify, 'dist/index.js');
   assert.equal(
     await readFile(path.join(install, 'node_modules', '@templify', 'cli', 'LICENSE'), 'utf8'),
