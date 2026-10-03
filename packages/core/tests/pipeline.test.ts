@@ -1,5 +1,5 @@
 import PizZip from 'pizzip';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   derivePublicationManifest,
@@ -13,6 +13,8 @@ import {
 import { createDocx } from './docx-fixture';
 
 const pdf = new TextEncoder().encode('%PDF-1.7\nfixture');
+
+afterEach(() => vi.useRealTimers());
 
 describe('core pipeline', () => {
   it('prepares once, normalizes unknown rows, plans, and renders in memory', async () => {
@@ -48,6 +50,35 @@ describe('core pipeline', () => {
     expect(derivePublicationManifest(prepared.value.plan).items).toEqual([
       { artifactId: 'document-0:docx', kind: 'docx', relativePath: 'result.docx' },
     ]);
+  });
+
+  it('preserves template ZIP timestamps and renders identical bytes across clock changes', async () => {
+    const sourceZip = new PizZip(createDocx([['{name}']]));
+    sourceZip.files['word/document.xml']!.date = new Date('2001-02-03T12:00:00Z');
+    const source = sourceZip.generate({ type: 'uint8array' });
+    const originalEntries = new PizZip(source).files;
+    const template = prepareTemplate(source);
+    if (!template.ok) throw new Error('fixture must prepare');
+    const prepared = prepareGeneration({
+      template: template.value,
+      input: { kind: 'object-rows', rows: [{ name: 'Alice' }] },
+      request: { naming: { kind: 'single', fileName: 'Alice.docx' }, documentOutputs: 'docx' },
+    });
+    if (!prepared.ok) throw new Error(JSON.stringify(prepared.errors));
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-01T12:00:00Z'));
+    const first = await generateArtifacts(prepared.value);
+    vi.setSystemTime(new Date('2027-01-01T12:00:00Z'));
+    const second = await generateArtifacts(prepared.value);
+    if (!first.ok || !second.ok) throw new Error('fixture must render');
+    expect(second.value.artifacts[0]!.bytes).toEqual(first.value.artifacts[0]!.bytes);
+    const rendered = new PizZip(second.value.artifacts[0]!.bytes);
+    for (const [name, entry] of Object.entries(originalEntries)) {
+      expect(rendered.files[name]!.date.getTime()).toBe(entry.date.getTime());
+    }
+    expect(rendered.file('word/document.xml')!.asText()).toContain('Alice');
+    expect(new PizZip(source).file('word/document.xml')!.asText()).toContain('{name}');
   });
 
   it('converts each document once, merges PDFs, and packages the complete set as ZIP', async () => {

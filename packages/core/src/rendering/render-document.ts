@@ -35,6 +35,9 @@ export function renderDocument(
   try {
     const context = createRenderContext(template.definition.fields, data, formatter);
     const zip = new PizZip(copyPreparedTemplateSource(template));
+    const entryDates = new Map(
+      Object.entries(zip.files).map(([name, entry]) => [name, entry.date]),
+    );
     const document = new Docxtemplater(zip, {
       errorLogging: false,
       parser: (tag) => {
@@ -47,7 +50,13 @@ export function renderDocument(
       },
     });
     document.render(context);
-    return document.getZip().generate({ type: 'uint8array' });
+    const renderedZip = document.getZip();
+    // Docxtemplater rewrites ZIP entries with the current time. Keep DOCX bytes stable
+    // for identical input so PDF previews and exports can share cached conversions.
+    for (const [name, entry] of Object.entries(renderedZip.files)) {
+      entry.date = entryDates.get(name) ?? new Date('1980-01-01T00:00:00Z');
+    }
+    return renderedZip.generate({ type: 'uint8array' });
   } catch (cause) {
     if (cause instanceof DocumentRenderFailure) throw cause;
     throw new DocumentRenderFailure({ code: 'RenderFailed' }, { cause });

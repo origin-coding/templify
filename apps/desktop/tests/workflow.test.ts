@@ -68,6 +68,7 @@ beforeEach(async () => {
   workflow = new DocumentWorkflow();
 });
 afterEach(async () => {
+  vi.useRealTimers();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -120,6 +121,8 @@ describe('desktop batch workflow', () => {
     ).toMatchObject({ status: 'error', issue: { code: 'InvalidRenderOptions' } });
   });
   it('previews selected/all records before export and reuses PDF conversion for ordered merged output', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-01T12:00:00Z'));
     const font = new Uint8Array(
       await readFile(
         new URL('../../../packages/node-output/tests/fixtures/arimo-regular.ttf', import.meta.url),
@@ -138,10 +141,12 @@ describe('desktop batch workflow', () => {
     expect(readPdfText(selectedPreview.bytes)).toContain('Bob');
     expect(readPdfText(selectedPreview.bytes)).not.toContain('Alice');
     expect(await readdir(root)).toEqual(['template.docx']);
+    vi.setSystemTime(new Date('2026-01-01T12:01:00Z'));
     const allPreview = value(await workflow.previewPdf(records, 'all'));
     expect(allPreview.id).not.toBe(selectedPreview.id);
     const allText = readPdfText(allPreview.bytes);
     expect(allText.indexOf('Alice')).toBeLessThan(allText.indexOf('Bob'));
+    vi.setSystemTime(new Date('2026-01-01T12:02:00Z'));
     value(await workflow.invalidateOutput(true));
     const planned = value(
       await workflow.previewOutput(records, {
